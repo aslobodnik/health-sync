@@ -87,6 +87,7 @@ struct TypeSyncStatus: Identifiable {
     let id: String
     let type: HealthDataType
     var lastSyncTime: Date?
+    var lastSyncCount: Int?  // nil = never synced, 0 = up to date, >0 = records synced
     var lastError: String?
     var pendingCount: Int
     var isAuthorized: Bool
@@ -95,6 +96,7 @@ struct TypeSyncStatus: Identifiable {
         self.id = type.rawValue
         self.type = type
         self.lastSyncTime = nil
+        self.lastSyncCount = nil
         self.lastError = nil
         self.pendingCount = 0
         self.isAuthorized = false

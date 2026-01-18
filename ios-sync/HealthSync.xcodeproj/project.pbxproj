@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		2B2B08EA2F1C0B590037B773 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2B2B08E92F1C0B590037B773 /* PrivacyInfo.xcprivacy */; };
+		2B65CC412F1D77EC001801AA /* Secrets.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2B65CC402F1D77EC001801AA /* Secrets.plist */; };
 		A1000001 /* HealthSyncApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100001 /* HealthSyncApp.swift */; };
 		A1000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100002 /* ContentView.swift */; };
 		A1000003 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100003 /* HealthKitManager.swift */; };
@@ -20,6 +21,7 @@
 
 /* Begin PBXFileReference section */
 		2B2B08E92F1C0B590037B773 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		2B65CC402F1D77EC001801AA /* Secrets.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Secrets.plist; path = HealthSync/Secrets.plist; sourceTree = "<group>"; };
 		A1100001 /* HealthSyncApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncApp.swift; sourceTree = "<group>"; };
 		A1100002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A1100003 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
@@ -47,6 +49,7 @@
 		A1400001 = {
 			isa = PBXGroup;
 			children = (
+				2B65CC402F1D77EC001801AA /* Secrets.plist */,
 				A1400002 /* HealthSync */,
 				A1400003 /* Products */,
 				A1400004 /* Frameworks */,
@@ -143,6 +146,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B65CC412F1D77EC001801AA /* Secrets.plist in Resources */,
 				2B2B08EA2F1C0B590037B773 /* PrivacyInfo.xcprivacy in Resources */,
 				A1000005 /* Assets.xcassets in Resources */,
 			);
@@ -297,7 +301,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = HealthSync/HealthSync.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Slobo Fit";
@@ -312,7 +316,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.slobo.HealthSync;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -328,7 +332,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = HealthSync/HealthSync.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Slobo Fit";
@@ -343,7 +347,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.slobo.HealthSync;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

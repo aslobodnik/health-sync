@@ -13,6 +13,8 @@ class HealthKitManager: ObservableObject {
     @Published var authorizationError: String?
     @Published var typeStatuses: [HealthDataType: TypeSyncStatus] = [:]
 
+    private var syncingTypes: Set<HealthDataType> = []  // Prevent duplicate syncs
+
     // Types to sync - all cases from the enum
     private var typesToSync: [HealthDataType] {
         HealthDataType.allCases
@@ -115,6 +117,14 @@ class HealthKitManager: ObservableObject {
     func fetchAndSync(type: HealthDataType) async {
         guard let sampleType = type.hkSampleType else { return }
 
+        // Prevent duplicate syncs for the same type
+        guard !syncingTypes.contains(type) else {
+            print("\(type.displayName): sync already in progress, skipping")
+            return
+        }
+        syncingTypes.insert(type)
+        defer { syncingTypes.remove(type) }
+
         let anchor = await anchorStore.getAnchor(for: type)
 
         // On first sync (no anchor), limit to recent data to avoid millions of historical records
@@ -133,11 +143,13 @@ class HealthKitManager: ObservableObject {
                 predicate: predicate
             )
 
-            if !samples.isEmpty || !deletedObjects.isEmpty {
-                print("\(type.displayName): \(samples.count) new/updated, \(deletedObjects.count) deleted")
+            let syncCount = samples.count + deletedObjects.count
 
-                // Convert to payloads and sync
+            if syncCount > 0 {
+                print("\(type.displayName): \(samples.count) new/updated, \(deletedObjects.count) deleted")
                 await syncData(type: type, samples: samples, deletedUUIDs: deletedObjects.map { $0.uuid.uuidString })
+            } else {
+                print("\(type.displayName): up to date")
             }
 
             // Save new anchor
@@ -146,6 +158,8 @@ class HealthKitManager: ObservableObject {
             }
 
             // Update status
+            typeStatuses[type]?.lastSyncTime = Date()
+            typeStatuses[type]?.lastSyncCount = syncCount
             typeStatuses[type]?.lastError = nil
 
         } catch {

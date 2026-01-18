@@ -45,6 +45,13 @@ PostgreSQL 16 on NUC (Ubuntu):
 ## Setup
 
 ### iOS App
+
+#### Requirements
+- **Mac** with Xcode 15+ installed
+- **Apple Developer Program** membership ($99/year) - required for TestFlight distribution
+- **iPhone** with HealthKit data
+
+#### Local Development
 ```bash
 open ios-sync/HealthSync.xcodeproj
 # Set Team in Signing & Capabilities
@@ -52,6 +59,28 @@ open ios-sync/HealthSync.xcodeproj
 # Add your API secret to Secrets.plist
 # Build to iPhone (Cmd+R)
 ```
+
+#### TestFlight Distribution
+
+1. **Archive the app**
+   - In Xcode: Product → Archive
+   - Wait for build to complete
+
+2. **Distribute to App Store Connect**
+   - In the Organizer window, select your archive
+   - Click "Distribute App"
+   - Choose "App Store Connect" → Distribute
+
+   ![Xcode Distribution](docs/xcode-distribution.png)
+
+3. **Add to Test Group**
+   - Go to [App Store Connect](https://appstoreconnect.apple.com)
+   - Navigate to your app → TestFlight
+   - Wait for build to finish processing (yellow = processing, green = ready)
+   - Click the build, then add to your test group under "Internal Testing"
+   - Install via TestFlight app on iPhone
+
+   ![App Store Connect TestFlight](docs/testflight-builds.png)
 
 ### Dashboard
 ```bash
@@ -106,15 +135,16 @@ health-sync/
 
 To run your own instance:
 
-1. **Database**: PostgreSQL 16+ with the schema from `sql/schema.sql`
-2. **Dashboard**: Deploy to Vercel (or any Node.js host)
+1. **Apple Developer Program**: Sign up at [developer.apple.com](https://developer.apple.com/programs/) ($99/year) - required for TestFlight
+2. **Database**: PostgreSQL 16+ with the schema from `sql/schema.sql`
+3. **Dashboard**: Deploy to Vercel (or any Node.js host)
    - Set `DATABASE_URL` to your Postgres connection string
    - Set `SYNC_API_SECRET` to a random string
-3. **iOS App**: Build in Xcode
+4. **iOS App**: Build and distribute via TestFlight (see Setup above)
    - Copy `Secrets.plist.example` to `Secrets.plist`
    - Set `API_SECRET` to match your `SYNC_API_SECRET`
    - Update `serverURL` in `Models.swift` to your dashboard URL
-4. **Historical data**: Export Apple Health XML and run `parse_export.py`
+5. **Historical data**: Export Apple Health XML and run `parse_export.py`
 
 ## License
 

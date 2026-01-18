@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
     @EnvironmentObject var syncManager: SyncManager
+    @State private var isSyncingManual = false
 
     /// Display order for data types
     private static let typeOrder: [HealthDataType] = [
@@ -100,12 +101,22 @@ struct ContentView: View {
                 Section("Actions") {
                     Button {
                         Task {
+                            isSyncingManual = true
                             await healthKitManager.syncAll()
+                            isSyncingManual = false
                         }
                     } label: {
-                        Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                        HStack {
+                            if isSyncingManual {
+                                ProgressView()
+                                    .padding(.trailing, 4)
+                                Text("Syncing...")
+                            } else {
+                                Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                        }
                     }
-                    .disabled(!healthKitManager.isAuthorized || syncManager.isSyncing)
+                    .disabled(!healthKitManager.isAuthorized || isSyncingManual)
                 }
 
                 // MARK: - Server Config Section
@@ -152,10 +163,24 @@ struct TypeStatusRow: View {
                 }
             }
 
-            if let lastSync = status.lastSyncTime {
-                Text("Last sync: \(lastSync, style: .relative)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            HStack(spacing: 8) {
+                if let lastSync = status.lastSyncTime {
+                    Text(lastSync, style: .relative)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                if let count = status.lastSyncCount {
+                    if count == 0 {
+                        Text("up to date")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    } else {
+                        Text("\(count) synced")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                }
             }
 
             if let error = status.lastError {
