@@ -27,9 +27,10 @@ iPhone HealthKit → iOS App → Vercel API → NUC Postgres
 - Swipe left on data type row → Reset to clear stuck anchor
 - **Deployment:** TestFlight (personal use only, slobo is sole tester)
 - To deploy: Xcode → Product → Archive → Distribute App → TestFlight
-- **Current version:** 1.1 (build 3) - added weight + VO2 Max
+- **Current version:** 1.2 (build 1) - sync UX improvements, duplicate prevention
 - **Versioning:** Bump version (1.x) for features, build number increments each archive
 - After upload: App Store Connect → TestFlight → click new build → add to test group
+- **IMPORTANT:** Secrets.plist must be in Xcode's "Copy Bundle Resources" build phase or app crashes on sync
 
 **Dashboard:** Complete (`dashboard/`)
 - MTD/YTD comparisons vs prior year for steps and active energy
