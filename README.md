@@ -6,6 +6,8 @@ Personal Apple Health data pipeline - syncs iPhone health data to self-hosted da
 
 **Live demo:** [fit.justslobo.com](https://fit.justslobo.com)
 
+> **Note:** This is a personal project built for my own use. It works for me but isn't designed as a general-purpose tool. Feel free to explore the code or fork it, but don't expect polish or support.
+
 <p align="center">
   <img src="docs/ios-app.png" width="250" alt="iOS App" />
   <img src="docs/dashboard.png" width="500" alt="Dashboard" />
