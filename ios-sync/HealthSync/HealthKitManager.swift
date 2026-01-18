@@ -287,51 +287,6 @@ class HealthKitManager: ObservableObject {
         }
     }
 
-    // MARK: - Initial Backfill
-
-    func performBackfill() async {
-        let startDate = Calendar.current.date(byAdding: .day, value: -SyncConfig.backfillDays, to: Date()) ?? Date()
-
-        for type in typesToSync {
-            guard let sampleType = type.hkSampleType else { continue }
-
-            print("Starting backfill for \(type.displayName) from \(startDate)")
-
-            do {
-                let samples = try await queryHistoricalData(sampleType: sampleType, startDate: startDate)
-                print("Backfill found \(samples.count) \(type.displayName) samples")
-
-                if !samples.isEmpty {
-                    await syncData(type: type, samples: samples, deletedUUIDs: [])
-                }
-            } catch {
-                print("Backfill failed for \(type.displayName): \(error)")
-                typeStatuses[type]?.lastError = "Backfill failed: \(error.localizedDescription)"
-            }
-        }
-    }
-
-    private func queryHistoricalData(sampleType: HKSampleType, startDate: Date) async throws -> [HKSample] {
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictStartDate)
-
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: sampleType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: samples ?? [])
-                }
-            }
-
-            healthStore.execute(query)
-        }
-    }
-
     // MARK: - Cleanup
 
     func stopObservers() {

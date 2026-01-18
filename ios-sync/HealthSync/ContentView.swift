@@ -3,7 +3,6 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
     @EnvironmentObject var syncManager: SyncManager
-    @State private var isBackfilling = false
 
     /// Display order for data types
     private static let typeOrder: [HealthDataType] = [
@@ -104,28 +103,9 @@ struct ContentView: View {
                             await healthKitManager.syncAll()
                         }
                     } label: {
-                        Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                        Label("Sync", systemImage: "arrow.triangle.2.circlepath")
                     }
                     .disabled(!healthKitManager.isAuthorized || syncManager.isSyncing)
-
-                    Button {
-                        Task {
-                            isBackfilling = true
-                            await healthKitManager.performBackfill()
-                            isBackfilling = false
-                        }
-                    } label: {
-                        if isBackfilling {
-                            HStack {
-                                ProgressView()
-                                    .padding(.trailing, 8)
-                                Text("Backfilling...")
-                            }
-                        } else {
-                            Label("Initial Backfill (\(SyncConfig.backfillDays) days)", systemImage: "clock.arrow.circlepath")
-                        }
-                    }
-                    .disabled(!healthKitManager.isAuthorized || isBackfilling)
                 }
 
                 // MARK: - Server Config Section

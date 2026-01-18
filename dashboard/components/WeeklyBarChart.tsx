@@ -74,13 +74,16 @@ export default function WeeklyBarChart({
     ? Math.round(completedDays.reduce((a, b) => a + b.value, 0) / completedDays.length)
     : 0;
 
+  // Check for 6-day streak (all completed days in view met goal)
+  const hasStreak = goal && completedDays.length >= 6 && completedDays.slice(-6).every((d) => d.value >= goal);
+
   // Date range
   const startDate = parseDate(last7[0].date);
   const endDate = parseDate(last7[last7.length - 1].date);
   const dateRange = `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 
   return (
-    <div className="card-terminal rounded-lg p-5">
+    <div className={`card-terminal rounded-lg p-5 ${hasStreak ? 'ring-2 ring-amber-400/60' : ''}`}>
       {/* Header */}
       <div className="text-[10px] text-zinc-500 uppercase tracking-[0.15em] mb-1">
         {title}
