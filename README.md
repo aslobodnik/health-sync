@@ -4,6 +4,11 @@
 
 Personal Apple Health data pipeline - syncs iPhone health data to self-hosted dashboard.
 
+<p align="center">
+  <img src="docs/ios-app.png" width="250" alt="iOS App" />
+  <img src="docs/dashboard.png" width="500" alt="Dashboard" />
+</p>
+
 ## Architecture
 
 ```
@@ -79,8 +84,6 @@ open ios-sync/HealthSync.xcodeproj
    - Wait for build to finish processing (yellow = processing, green = ready)
    - Click the build, then add to your test group under "Internal Testing"
    - Install via TestFlight app on iPhone
-
-   ![App Store Connect TestFlight](docs/testflight-builds.png)
 
 ### Dashboard
 ```bash

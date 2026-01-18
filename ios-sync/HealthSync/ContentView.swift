@@ -148,44 +148,28 @@ struct TypeStatusRow: View {
     let status: TypeSyncStatus
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(status.type.displayName)
-                Spacer()
-                if status.isAuthorized {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+
+                if let error = status.lastError {
+                    Text(error)
                         .font(.caption)
-                } else {
-                    Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.red)
+                } else if let count = status.lastSyncCount, count > 0 {
+                    Text("\(count) synced")
                         .font(.caption)
+                        .foregroundColor(.blue)
                 }
             }
 
-            HStack(spacing: 8) {
-                if let lastSync = status.lastSyncTime {
-                    Text(lastSync, style: .relative)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+            Spacer()
 
-                if let count = status.lastSyncCount {
-                    if count == 0 {
-                        Text("up to date")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    } else {
-                        Text("\(count) synced")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                    }
-                }
-            }
-
-            if let error = status.lastError {
-                Text(error)
-                    .font(.caption)
+            if status.isAuthorized {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            } else {
+                Image(systemName: "xmark.circle.fill")
                     .foregroundColor(.red)
             }
         }
