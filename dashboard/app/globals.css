@@ -1,0 +1,265 @@
+@import "tailwindcss";
+
+:root {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --accent-good: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-bad: #ef4444;
+  --accent-cyan: #22d3ee;
+  --accent-heart: #f472b6;
+  --muted: #52525b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Phosphor glow effect for key metrics */
+.glow-emerald {
+  text-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.2);
+}
+
+.glow-cyan {
+  text-shadow: 0 0 20px rgba(34, 211, 238, 0.5), 0 0 40px rgba(34, 211, 238, 0.2);
+}
+
+.glow-pink {
+  text-shadow: 0 0 20px rgba(244, 114, 182, 0.5), 0 0 40px rgba(244, 114, 182, 0.2);
+}
+
+/* Card with corner accents */
+.card-terminal {
+  --corner-color: rgba(16, 185, 129, 0.4);
+  position: relative;
+  background: linear-gradient(135deg, rgba(39, 39, 42, 0.4) 0%, rgba(24, 24, 27, 0.6) 100%);
+  border: 1px solid rgba(63, 63, 70, 0.5);
+}
+
+.card-terminal::before,
+.card-terminal::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: var(--corner-color);
+  border-style: solid;
+}
+
+.card-terminal::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.card-terminal::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+/* Subtle pulse for live data */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.pulse-live {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Section divider with glow */
+.divider-glow {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent);
+}
+
+/* Scanline overlay effect */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  z-index: 50;
+}
+
+/* Vignette effect */
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.6) 100%);
+  z-index: 49;
+}
+
+/* Fade animations */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: fade-up 0.6s ease-out;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  animation: reveal 0.8s ease-out forwards;
+}
+
+.reveal-delay-1 { animation-delay: 0.1s; opacity: 0; }
+.reveal-delay-2 { animation-delay: 0.2s; opacity: 0; }
+.reveal-delay-3 { animation-delay: 0.3s; opacity: 0; }
+.reveal-delay-4 { animation-delay: 0.4s; opacity: 0; }
+
+/* Activity grid cell styles */
+.activity-cell-good {
+  background: rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.activity-cell-ok {
+  background: rgba(245, 158, 11, 0.3);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.activity-cell-bad {
+  background: rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.activity-cell-empty {
+  background: rgba(39, 39, 42, 0.3);
+  border: 1px solid rgba(63, 63, 70, 0.4);
+}
+
+/* Glow effects for activity cells */
+.activity-cell-good:hover {
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.activity-cell-ok:hover {
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+.activity-cell-bad:hover {
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+/* Loading skeleton */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(39, 39, 42, 0.3) 25%,
+    rgba(63, 63, 70, 0.3) 50%,
+    rgba(39, 39, 42, 0.3) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* Header glow effect */
+.header-glow {
+  background: linear-gradient(
+    135deg,
+    #d4d4d8 0%,
+    #fafafa 25%,
+    #22d3ee 50%,
+    #fafafa 75%,
+    #d4d4d8 100%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: header-shimmer 4s linear infinite;
+  text-shadow: none;
+  filter: drop-shadow(0 0 30px rgba(34, 211, 238, 0.3));
+}
+
+@keyframes header-shimmer {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ECG heartbeat animation */
+.ecg-line {
+  opacity: 0.9;
+}
+
+.ecg-path {
+  stroke-dasharray: 800;
+  stroke-dashoffset: 800;
+  animation: ecg-draw 2.5s ease-in-out infinite;
+}
+
+@keyframes ecg-draw {
+  0% {
+    stroke-dashoffset: 800;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    stroke-dashoffset: 0;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -800;
+    opacity: 0;
+  }
+}
+
+.ecg-glow {
+  background: radial-gradient(ellipse at center, rgba(34, 211, 238, 0.15) 0%, transparent 70%);
+  animation: ecg-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes ecg-pulse {
+  0%, 100% { opacity: 0; }
+  40%, 60% { opacity: 1; }
+}
