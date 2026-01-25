@@ -27,7 +27,9 @@ interface WeeklyBarChartProps {
 function formatCompact(n: number): string {
   if (n >= 1000) {
     const k = n / 1000;
-    return k >= 10 ? Math.round(k) + "k" : k.toFixed(1).replace(/\.0$/, "") + "k";
+    return k >= 10
+      ? Math.round(k) + "k"
+      : k.toFixed(1).replace(/\.0$/, "") + "k";
   }
   return n.toString();
 }
@@ -70,9 +72,12 @@ export default function WeeklyBarChart({
   const completedDays = last7.filter((d) => !d.isToday);
   const values = last7.map((d) => d.value);
   const max = Math.max(...values, goal ?? 0);
-  const avg = completedDays.length > 0
-    ? Math.round(completedDays.reduce((a, b) => a + b.value, 0) / completedDays.length)
-    : 0;
+  const avg =
+    completedDays.length > 0
+      ? Math.round(
+          completedDays.reduce((a, b) => a + b.value, 0) / completedDays.length,
+        )
+      : 0;
 
   // Calculate actual streak length by counting consecutive goal-meeting days from most recent
   let streakCount = 0;
@@ -94,7 +99,9 @@ export default function WeeklyBarChart({
   const dateRange = `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 
   return (
-    <div className={`card-terminal rounded-lg p-5 ${hasStreak ? 'streak-card' : ''}`}>
+    <div
+      className={`card-terminal rounded-lg p-5 ${hasStreak ? "streak-card" : ""}`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-1">
         <div className="text-[10px] text-zinc-500 uppercase tracking-[0.15em]">
@@ -103,11 +110,24 @@ export default function WeeklyBarChart({
         {/* Streak badge - compact inline */}
         {hasStreak && (
           <div className="streak-badge-inline">
-            <svg className="streak-flame-mini" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C12 2 8 6 8 10C8 12 9 14 12 14C15 14 16 12 16 10C16 6 12 2 12 2Z" fill="url(#flameGradMini)" />
-              <path d="M12 8C12 8 10 10 10 12C10 13 10.5 14 12 14C13.5 14 14 13 14 12C14 10 12 8 12 8Z" fill="#FEF3C7" />
+            <svg className="streak-flame-mini" viewBox="6 0 12 16" fill="none">
+              <path
+                d="M12 2C12 2 8 6 8 10C8 12 9 14 12 14C15 14 16 12 16 10C16 6 12 2 12 2Z"
+                fill="url(#flameGradMini)"
+              />
+              <path
+                d="M12 8C12 8 10 10 10 12C10 13 10.5 14 12 14C13.5 14 14 13 14 12C14 10 12 8 12 8Z"
+                fill="#FEF3C7"
+              />
               <defs>
-                <linearGradient id="flameGradMini" x1="12" y1="2" x2="12" y2="14" gradientUnits="userSpaceOnUse">
+                <linearGradient
+                  id="flameGradMini"
+                  x1="12"
+                  y1="2"
+                  x2="12"
+                  y2="14"
+                  gradientUnits="userSpaceOnUse"
+                >
                   <stop stopColor="#FBBF24" />
                   <stop offset="1" stopColor="#F97316" />
                 </linearGradient>
@@ -118,7 +138,9 @@ export default function WeeklyBarChart({
         )}
       </div>
       <div className="flex items-baseline gap-2 mb-1">
-        <span className={`text-4xl font-bold font-mono ${hasStreak ? 'streak-glow text-amber-400' : 'glow-emerald text-emerald-400'}`}>
+        <span
+          className={`text-4xl font-bold font-mono ${hasStreak ? "streak-glow text-amber-400" : "glow-emerald text-emerald-400"}`}
+        >
           {formatCompact(avg)}
         </span>
         <span className="text-sm text-zinc-500">{unit}</span>
