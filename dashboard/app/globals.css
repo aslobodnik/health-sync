@@ -67,6 +67,38 @@ body {
   border-width: 0 2px 2px 0;
 }
 
+/* Streak achievement state - ignited corners */
+.card-terminal-streak {
+  --corner-color: rgba(251, 191, 36, 0.9);
+  box-shadow:
+    0 0 40px -10px rgba(251, 191, 36, 0.15),
+    inset 0 0 60px -30px rgba(251, 191, 36, 0.05);
+}
+
+.card-terminal-streak::before,
+.card-terminal-streak::after {
+  width: 16px;
+  height: 16px;
+  border-width: 2.5px;
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+  animation: corner-breathe 3s ease-in-out infinite;
+}
+
+.card-terminal-streak::after {
+  animation-delay: 1.5s;
+}
+
+@keyframes corner-breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
+    opacity: 0.85;
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));
+    opacity: 1;
+  }
+}
+
 /* Subtle pulse for live data */
 @keyframes pulse-glow {
   0%, 100% { opacity: 1; }

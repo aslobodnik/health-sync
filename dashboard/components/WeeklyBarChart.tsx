@@ -83,7 +83,7 @@ export default function WeeklyBarChart({
   const dateRange = `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 
   return (
-    <div className={`card-terminal rounded-lg p-5 ${hasStreak ? 'ring-2 ring-amber-400/60' : ''}`}>
+    <div className={`card-terminal rounded-lg p-5 ${hasStreak ? 'card-terminal-streak' : ''}`}>
       {/* Header */}
       <div className="text-[10px] text-zinc-500 uppercase tracking-[0.15em] mb-1">
         {title}
