@@ -67,36 +67,51 @@ body {
   border-width: 0 2px 2px 0;
 }
 
-/* Streak achievement state - ignited corners */
-.card-terminal-streak {
-  --corner-color: rgba(251, 191, 36, 0.9);
-  box-shadow:
-    0 0 40px -10px rgba(251, 191, 36, 0.15),
-    inset 0 0 60px -30px rgba(251, 191, 36, 0.05);
+/* Streak card - subtle golden accent */
+.streak-card {
+  --corner-color: rgba(251, 191, 36, 0.8);
+  border-color: rgba(251, 191, 36, 0.25);
 }
 
-.card-terminal-streak::before,
-.card-terminal-streak::after {
-  width: 16px;
-  height: 16px;
-  border-width: 2.5px;
-  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
-  animation: corner-breathe 3s ease-in-out infinite;
+.streak-card::before,
+.streak-card::after {
+  border-color: rgba(251, 191, 36, 0.7);
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
 }
 
-.card-terminal-streak::after {
-  animation-delay: 1.5s;
+/* Inline streak badge - compact, next to title */
+.streak-badge-inline {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px 2px 4px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 4px;
 }
 
-@keyframes corner-breathe {
-  0%, 100% {
-    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
-    opacity: 0.85;
-  }
-  50% {
-    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));
-    opacity: 1;
-  }
+.streak-flame-mini {
+  width: 14px;
+  height: 14px;
+  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.6));
+  animation: flame-flicker 1.5s ease-in-out infinite;
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.08); }
+}
+
+.streak-count-mini {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+/* Streak number glow effect */
+.streak-glow {
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.5), 0 0 40px rgba(251, 191, 36, 0.25);
 }
 
 /* Subtle pulse for live data */

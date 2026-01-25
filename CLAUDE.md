@@ -38,6 +38,15 @@ iPhone HealthKit → iOS App → Vercel API → NUC Postgres
 - Swimming totals with pace/100yd
 - Steps and Zone 2 activity grids
 - Recent workouts
+- Streak indicators (6+ consecutive days meeting goal)
+
+### Dashboard Design Guidelines
+
+**Streak indicators:** Keep celebration subtle and integrated. Don't blow up card size or add overwhelming effects. The right approach:
+- Compact inline badge (flame icon + count) next to title
+- Golden accent color shift (corners, bars, main number)
+- Same card dimensions - no layout changes
+- Avoid: floating particles, massive icons, dramatic size changes
 
 ## Tech Stack
 
