@@ -272,7 +272,7 @@ class HealthKitManager: ObservableObject {
 
     /// Re-fetches recent data using date-bounded queries to fill gaps left by missed background deliveries.
     /// First run uses 30-day window to heal existing gaps; subsequent runs use 7 days.
-    func healingSync() async {
+    private func healingSync() async {
         guard syncManager != nil else { return }
 
         let isInitialHeal = !UserDefaults.standard.bool(forKey: "healthsync.initial_heal_completed")
