@@ -78,6 +78,9 @@ class HealthKitManager: ObservableObject {
 
         // Re-request to ensure we have current permissions (silent if already granted)
         await requestAuthorization()
+
+        // Run healing pass to fill any gaps from missed background deliveries
+        await healingSync()
     }
 
     // MARK: - Observer Queries (Background Notifications)
@@ -261,6 +264,68 @@ class HealthKitManager: ObservableObject {
     func syncAll() async {
         for type in typesToSync {
             await fetchAndSync(type: type)
+        }
+        await healingSync()
+    }
+
+    // MARK: - Healing Sync (Gap Repair)
+
+    /// Re-fetches recent data using date-bounded queries to fill gaps left by missed background deliveries.
+    /// First run uses 30-day window to heal existing gaps; subsequent runs use 7 days.
+    private func healingSync() async {
+        guard syncManager != nil else { return }
+
+        let isInitialHeal = !UserDefaults.standard.bool(forKey: "healthsync.initial_heal_completed")
+        let days = isInitialHeal ? SyncConfig.healingWindowInitialDays : SyncConfig.healingWindowDays
+
+        print("Healing sync: re-fetching last \(days) days\(isInitialHeal ? " (initial)" : "")")
+
+        let startDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictStartDate)
+
+        // Heal all sample types except workouts (workouts sync reliably)
+        let healableTypes = typesToSync.filter { $0 != .workout }
+
+        for type in healableTypes {
+            guard let sampleType = type.hkSampleType else { continue }
+
+            do {
+                let samples = try await performSampleQuery(sampleType: sampleType, predicate: predicate)
+
+                if !samples.isEmpty {
+                    print("Healing \(type.displayName): \(samples.count) samples")
+                    await syncData(type: type, samples: samples, deletedUUIDs: [])
+                }
+            } catch {
+                print("Healing query failed for \(type.displayName): \(error)")
+            }
+        }
+
+        if isInitialHeal {
+            UserDefaults.standard.set(true, forKey: "healthsync.initial_heal_completed")
+        }
+
+        print("Healing sync complete")
+    }
+
+    private func performSampleQuery(
+        sampleType: HKSampleType,
+        predicate: NSPredicate
+    ) async throws -> [HKSample] {
+        try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: sampleType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: samples ?? [])
+                }
+            }
+            healthStore.execute(query)
         }
     }
 
