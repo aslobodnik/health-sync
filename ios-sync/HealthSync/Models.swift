@@ -110,6 +110,8 @@ struct SyncConfig {
     static let refreshURL = "https://fit.justslobo.com/api/sync/refresh"
     static let batchSize = 1000
     static let backfillDays = 30 // Initial backfill window
+    static let healingWindowDays = 7 // Ongoing healing pass window
+    static let healingWindowInitialDays = 30 // First-run healing pass window
     static let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
 
     static var apiSecret: String {
