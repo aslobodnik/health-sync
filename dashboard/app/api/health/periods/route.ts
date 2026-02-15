@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { getPeriodComparisons, getDailyHRV, getDailyRHR, getLatestVO2Max } from "@/lib/queries";
+import { getPeriodComparisons, getDailyHRV, getDailyRHR, getSleepingHR, getLatestVO2Max } from "@/lib/queries";
 
 export async function GET() {
   try {
-    const [comparisons, hrv, rhr, vo2max] = await Promise.all([
+    const [comparisons, hrv, rhr, sleepHr, vo2max] = await Promise.all([
       getPeriodComparisons(),
       getDailyHRV(30),
       getDailyRHR(30),
+      getSleepingHR(30),
       getLatestVO2Max(),
     ]);
 
@@ -18,6 +19,7 @@ export async function GET() {
       energy,
       hrv,
       rhr,
+      sleepHr,
       vo2max,
     });
   } catch (error) {

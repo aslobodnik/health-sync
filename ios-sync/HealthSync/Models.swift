@@ -12,6 +12,11 @@ enum HealthDataType: String, CaseIterable, Codable {
     case sleepAnalysis = "HKCategoryTypeIdentifierSleepAnalysis"
     case bodyMass = "HKQuantityTypeIdentifierBodyMass"
     case vo2Max = "HKQuantityTypeIdentifierVO2Max"
+    case restingHeartRate = "HKQuantityTypeIdentifierRestingHeartRate"
+    case heartRateVariabilitySDNN = "HKQuantityTypeIdentifierHeartRateVariabilitySDNN"
+    case walkingHeartRateAverage = "HKQuantityTypeIdentifierWalkingHeartRateAverage"
+    case sleepingWristTemperature = "HKQuantityTypeIdentifierAppleSleepingWristTemperature"
+    case heartRateRecovery = "HKQuantityTypeIdentifierHeartRateRecoveryOneMinute"
 
     var hkSampleType: HKSampleType? {
         switch self {
@@ -29,6 +34,16 @@ enum HealthDataType: String, CaseIterable, Codable {
             return HKQuantityType(.bodyMass)
         case .vo2Max:
             return HKQuantityType(.vo2Max)
+        case .restingHeartRate:
+            return HKQuantityType(.restingHeartRate)
+        case .heartRateVariabilitySDNN:
+            return HKQuantityType(.heartRateVariabilitySDNN)
+        case .walkingHeartRateAverage:
+            return HKQuantityType(.walkingHeartRateAverage)
+        case .sleepingWristTemperature:
+            return HKQuantityType(.appleSleepingWristTemperature)
+        case .heartRateRecovery:
+            return HKQuantityType(.heartRateRecoveryOneMinute)
         }
     }
 
@@ -41,6 +56,11 @@ enum HealthDataType: String, CaseIterable, Codable {
         case .sleepAnalysis: return "Sleep"
         case .bodyMass: return "Weight"
         case .vo2Max: return "VO2 Max"
+        case .restingHeartRate: return "Resting HR"
+        case .heartRateVariabilitySDNN: return "HRV"
+        case .walkingHeartRateAverage: return "Walking HR"
+        case .sleepingWristTemperature: return "Sleep Temp"
+        case .heartRateRecovery: return "HR Recovery"
         }
     }
 }
@@ -147,6 +167,17 @@ extension HKQuantitySample {
         case HKQuantityTypeIdentifier.vo2Max.rawValue:
             unit = HKUnit.literUnit(with: .milli).unitDivided(by: .minute()).unitDivided(by: .gramUnit(with: .kilo))
             unitString = "mL/min·kg"
+        case HKQuantityTypeIdentifier.restingHeartRate.rawValue,
+             HKQuantityTypeIdentifier.walkingHeartRateAverage.rawValue,
+             HKQuantityTypeIdentifier.heartRateRecoveryOneMinute.rawValue:
+            unit = HKUnit.count().unitDivided(by: .minute())
+            unitString = "count/min"
+        case HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue:
+            unit = HKUnit.secondUnit(with: .milli)
+            unitString = "ms"
+        case HKQuantityTypeIdentifier.appleSleepingWristTemperature.rawValue:
+            unit = .degreeCelsius()
+            unitString = "degC"
         default:
             unit = .count()
             unitString = "count"

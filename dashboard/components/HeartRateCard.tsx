@@ -15,6 +15,7 @@ interface VO2MaxData {
 interface HeartRateCardProps {
   rhr: DataPoint[];
   hrv: DataPoint[];
+  sleepHr: DataPoint[];
   vo2max?: VO2MaxData | null;
 }
 
@@ -160,13 +161,15 @@ function VO2Timeline({ months }: { months: VO2MaxMonth[] }) {
   );
 }
 
-export default function HeartRateCard({ rhr, hrv, vo2max }: HeartRateCardProps) {
-  if (rhr.length === 0 && hrv.length === 0) return null;
+export default function HeartRateCard({ rhr, hrv, sleepHr, vo2max }: HeartRateCardProps) {
+  if (rhr.length === 0 && hrv.length === 0 && sleepHr.length === 0) return null;
 
   const latestRhr = rhr[rhr.length - 1]?.value ?? 0;
   const latestHrv = hrv[hrv.length - 1]?.value ?? 0;
   const latestRhrDate = rhr[rhr.length - 1]?.date ?? "";
   const latestHrvDate = hrv[hrv.length - 1]?.date ?? "";
+  const latestSleepHr = sleepHr[sleepHr.length - 1]?.value ?? 0;
+  const latestSleepHrDate = sleepHr[sleepHr.length - 1]?.date ?? "";
 
   return (
     <div className="card-terminal rounded-lg p-4" style={{ '--corner-color': 'rgba(244, 114, 182, 0.4)' } as React.CSSProperties}>
@@ -190,6 +193,20 @@ export default function HeartRateCard({ rhr, hrv, vo2max }: HeartRateCardProps) 
         <Trend data={hrv} lowerIsBetter={false} />
       </div>
       <Sparkline data={hrv} latest={latestHrv} color="#f472b6" />
+
+      {/* Sleeping HR */}
+      {sleepHr.length > 0 && (
+        <>
+          <div className="divider-glow my-3" style={{ background: 'linear-gradient(90deg, transparent, rgba(244, 114, 182, 0.3), transparent)' }} />
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[10px] text-zinc-500 uppercase tracking-[0.15em]">
+              sleeping hr <span className="text-zinc-600">({formatDate(latestSleepHrDate)})</span>
+            </div>
+            <Trend data={sleepHr} lowerIsBetter={true} />
+          </div>
+          <Sparkline data={sleepHr} latest={latestSleepHr} color="#f472b6" />
+        </>
+      )}
 
       {/* VO2 Max - 3-month timeline */}
       {vo2max && vo2max.months.length > 0 && (

@@ -5,7 +5,7 @@ import WorkoutList from "@/components/WorkoutList";
 import HeartRateCard from "@/components/HeartRateCard";
 import SwimmingCard from "@/components/SwimmingCard";
 import WeeklyBarChart from "@/components/WeeklyBarChart";
-import YearComparison from "@/components/YearComparison";
+import YearComparisonA from "@/components/YearComparisonA";
 
 interface StepsData {
   daily: { date: string; steps: number }[];
@@ -44,6 +44,7 @@ interface PeriodData {
   energy: { metric: string; mtd: number; mtd_prior: number; ytd: number; ytd_prior: number } | null;
   hrv: DailyHR[];
   rhr: DailyHR[];
+  sleepHr: { date: string; sleeping_hr: number }[];
   vo2max: VO2MaxData | null;
 }
 
@@ -115,6 +116,11 @@ export default function Home() {
   const rhrTrendData = periodData?.rhr?.map((d) => ({
     date: d.date,
     value: d.rhr ?? 0,
+  })) ?? [];
+
+  const sleepHrData = periodData?.sleepHr?.map((d) => ({
+    date: d.date,
+    value: d.sleeping_hr ?? 0,
   })) ?? [];
 
   if (loading) {
@@ -192,7 +198,7 @@ export default function Home() {
         {/* Year comparison */}
         {comparisonData && (
           <div className="mb-8">
-            <YearComparison
+            <YearComparisonA
               stepsCumulative={comparisonData.stepsCumulative}
               energyCumulative={comparisonData.energyCumulative}
             />
@@ -210,8 +216,8 @@ export default function Home() {
               <div className="h-px w-12 bg-gradient-to-l from-transparent to-zinc-700" />
             </div>
             <div className="flex justify-center gap-3 sm:gap-4 flex-wrap">
-              {(rhrTrendData.length > 0 || hrvTrendData.length > 0) && (
-                <HeartRateCard rhr={rhrTrendData} hrv={hrvTrendData} vo2max={periodData?.vo2max} />
+              {(rhrTrendData.length > 0 || hrvTrendData.length > 0 || sleepHrData.length > 0) && (
+                <HeartRateCard rhr={rhrTrendData} hrv={hrvTrendData} sleepHr={sleepHrData} vo2max={periodData?.vo2max} />
               )}
               {swimmingData && (
                 <SwimmingCard

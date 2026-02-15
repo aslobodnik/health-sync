@@ -478,6 +478,48 @@ export async function getDailyRHR(days: number = 30): Promise<DailyRHR[]> {
   return query<DailyRHR>(sql);
 }
 
+// Sleeping heart rate (HR during actual sleep windows, last N days)
+export interface DailySleepingHR {
+  date: string;
+  sleeping_hr: number;
+}
+
+export async function getSleepingHR(days: number = 30): Promise<DailySleepingHR[]> {
+  const sql = `
+    WITH sleep_windows AS (
+      SELECT
+        CASE WHEN EXTRACT(HOUR FROM end_time AT TIME ZONE 'America/New_York') < 12
+             THEN TO_CHAR(DATE(end_time AT TIME ZONE 'America/New_York'), 'YYYY-MM-DD')
+             ELSE TO_CHAR(DATE(end_time AT TIME ZONE 'America/New_York') + 1, 'YYYY-MM-DD')
+        END as night,
+        start_time,
+        end_time
+      FROM health_raw
+      WHERE record_type = 'HKCategoryTypeIdentifierSleepAnalysis'
+        AND value_numeric IN (3, 4, 5)
+        AND start_time > NOW() - INTERVAL '${days} days'
+    ),
+    sleeping_hr AS (
+      SELECT
+        sw.night as date,
+        hr.value_numeric as hr
+      FROM sleep_windows sw
+      JOIN health_raw hr
+        ON hr.record_type = 'HKQuantityTypeIdentifierHeartRate'
+        AND hr.source_name ILIKE '%watch%'
+        AND hr.start_time >= sw.start_time
+        AND hr.start_time <= sw.end_time
+    )
+    SELECT
+      date,
+      ROUND(AVG(hr))::int as sleeping_hr
+    FROM sleeping_hr
+    GROUP BY date
+    ORDER BY date
+  `;
+  return query<DailySleepingHR>(sql);
+}
+
 // Swimming workout details (for display)
 export interface SwimWorkout {
   date: string;

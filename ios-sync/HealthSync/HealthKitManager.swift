@@ -204,7 +204,9 @@ class HealthKitManager: ObservableObject {
         var allWorkouts: [WorkoutPayload] = []
 
         switch type {
-        case .stepCount, .heartRate, .activeEnergyBurned, .bodyMass, .vo2Max:
+        case .stepCount, .heartRate, .activeEnergyBurned, .bodyMass, .vo2Max,
+             .restingHeartRate, .heartRateVariabilitySDNN, .walkingHeartRateAverage,
+             .sleepingWristTemperature, .heartRateRecovery:
             allRecords = samples.compactMap { ($0 as? HKQuantitySample)?.toPayload() }
         case .sleepAnalysis:
             allRecords = samples.compactMap { ($0 as? HKCategorySample)?.toPayload() }
