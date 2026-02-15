@@ -78,9 +78,6 @@ class HealthKitManager: ObservableObject {
 
         // Re-request to ensure we have current permissions (silent if already granted)
         await requestAuthorization()
-
-        // Run healing pass to fill any gaps from missed background deliveries
-        await healingSync()
     }
 
     // MARK: - Observer Queries (Background Notifications)
@@ -264,10 +261,11 @@ class HealthKitManager: ObservableObject {
     // MARK: - Manual Sync All
 
     func syncAll() async {
-        for type in typesToSync {
-            await fetchAndSync(type: type)
+        await withTaskGroup(of: Void.self) { group in
+            for type in typesToSync {
+                group.addTask { await self.fetchAndSync(type: type) }
+            }
         }
-        await healingSync()
     }
 
     // MARK: - Healing Sync (Gap Repair)
