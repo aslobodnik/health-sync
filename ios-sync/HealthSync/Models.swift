@@ -77,6 +77,7 @@ struct HealthRecordPayload: Codable {
     let startTime: Date
     let endTime: Date
     let metadata: [String: String]?
+    let sampleUUID: String?
 }
 
 struct WorkoutPayload: Codable {
@@ -90,6 +91,7 @@ struct WorkoutPayload: Codable {
     let totalEnergyBurned: Double?
     let statistics: [String: Double]?
     let metadata: [String: String]?
+    let sampleUUID: String?
 }
 
 struct SyncBatch: Codable {
@@ -192,7 +194,8 @@ extension HKQuantitySample {
             unit: unitString,
             startTime: startDate,
             endTime: endDate,
-            metadata: metadata?.compactMapValues { "\($0)" }
+            metadata: metadata?.compactMapValues { "\($0)" },
+            sampleUUID: uuid.uuidString
         )
     }
 }
@@ -215,7 +218,8 @@ extension HKCategorySample {
             unit: nil,
             startTime: startDate,
             endTime: endDate,
-            metadata: metadata?.compactMapValues { "\($0)" }
+            metadata: metadata?.compactMapValues { "\($0)" },
+            sampleUUID: uuid.uuidString
         )
     }
 
@@ -288,7 +292,8 @@ extension HKWorkout {
             totalDistance: totalDistance?.doubleValue(for: .mile()),
             totalEnergyBurned: totalEnergyBurned?.doubleValue(for: .kilocalorie()),
             statistics: stats.isEmpty ? nil : stats,
-            metadata: metadata?.compactMapValues { "\($0)" }
+            metadata: metadata?.compactMapValues { "\($0)" },
+            sampleUUID: uuid.uuidString
         )
     }
 }
@@ -309,4 +314,26 @@ extension HKWorkoutActivityType {
         default: return "HKWorkoutActivityTypeOther"
         }
     }
+}
+
+// MARK: - Outbox Types (Durable Sync Staging)
+
+enum BatchStatus: String, Codable {
+    case pending, uploading, succeeded, failed
+}
+
+struct StagedBatch: Codable {
+    let id: UUID
+    let payload: Data
+    var status: BatchStatus
+}
+
+struct StagedPage: Codable {
+    let id: UUID
+    let type: String
+    let baseAnchor: Data?
+    let candidateAnchor: Data
+    var batches: [StagedBatch]
+    var attemptCount: Int
+    let createdAt: Date
 }
