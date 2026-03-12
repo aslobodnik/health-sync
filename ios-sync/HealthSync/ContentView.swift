@@ -142,6 +142,14 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .navigationTitle("Health Sync")
