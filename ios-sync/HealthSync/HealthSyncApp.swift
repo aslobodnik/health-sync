@@ -1,10 +1,9 @@
 import SwiftUI
-import HealthKit
 
 @main
 struct HealthSyncApp: App {
     @StateObject private var healthKitManager = HealthKitManager()
-    @StateObject private var syncManager = SyncManager()
+    @StateObject private var syncManager = SyncManager()  // kept for rollback
 
     var body: some Scene {
         WindowGroup {
@@ -12,7 +11,25 @@ struct HealthSyncApp: App {
                 .environmentObject(healthKitManager)
                 .environmentObject(syncManager)
                 .task {
-                    await healthKitManager.setSyncManager(syncManager)
+                    let engine = SyncEngine()
+
+                    // Wire status updates from SyncEngine to HealthKitManager
+                    let hkm = healthKitManager
+                    await engine.setOnStatusUpdate { type, status in
+                        switch status {
+                        case .syncing:
+                            hkm.typeStatuses[type]?.lastError = nil
+                        case .completed(let count):
+                            hkm.typeStatuses[type]?.lastSyncTime = Date()
+                            hkm.typeStatuses[type]?.lastSyncCount = count
+                            hkm.typeStatuses[type]?.lastError = nil
+                        case .error(let message):
+                            hkm.typeStatuses[type]?.lastError = message
+                        }
+                    }
+
+                    await healthKitManager.setSyncEngine(engine)
+                    await engine.resumePendingPages()
                     await healthKitManager.initializeIfAuthorized()
                 }
         }

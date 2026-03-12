@@ -16,6 +16,20 @@ struct ContentView: View {
         ContentView.typeOrder.compactMap { healthKitManager.typeStatuses[$0] }
     }
 
+    /// Most recent sync time across all types
+    private var lastSyncTime: Date? {
+        healthKitManager.typeStatuses.values
+            .compactMap(\.lastSyncTime)
+            .max()
+    }
+
+    /// Any type currently has an error
+    private var lastError: String? {
+        healthKitManager.typeStatuses.values
+            .compactMap(\.lastError)
+            .first
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -43,7 +57,7 @@ struct ContentView: View {
                     HStack {
                         Text("Last Sync")
                         Spacer()
-                        if let lastSync = syncManager.lastSyncTime {
+                        if let lastSync = lastSyncTime {
                             Text(lastSync, style: .relative)
                                 .foregroundColor(.secondary)
                         } else {
@@ -52,7 +66,7 @@ struct ContentView: View {
                         }
                     }
 
-                    if syncManager.isSyncing {
+                    if isSyncingManual {
                         HStack {
                             ProgressView()
                                 .padding(.trailing, 8)
@@ -60,16 +74,7 @@ struct ContentView: View {
                         }
                     }
 
-                    if syncManager.pendingBatches > 0 {
-                        HStack {
-                            Text("Pending")
-                            Spacer()
-                            Text("\(syncManager.pendingBatches) batches")
-                                .foregroundColor(.orange)
-                        }
-                    }
-
-                    if let error = syncManager.lastError {
+                    if let error = lastError {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.red)
