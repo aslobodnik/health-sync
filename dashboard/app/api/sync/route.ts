@@ -84,7 +84,8 @@ export async function POST(request: NextRequest) {
                   value_numeric, value_text, start_time, end_time,
                   metadata, record_hash, sample_uuid
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                ON CONFLICT (sample_uuid) DO UPDATE SET
+                ON CONFLICT (record_hash) DO UPDATE SET
+                  sample_uuid = EXCLUDED.sample_uuid,
                   value_numeric = EXCLUDED.value_numeric,
                   value_text = EXCLUDED.value_text,
                   metadata = EXCLUDED.metadata
@@ -148,7 +149,8 @@ export async function POST(request: NextRequest) {
                   avg_heart_rate, min_heart_rate, max_heart_rate,
                   metadata, workout_hash, sample_uuid
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-                ON CONFLICT (sample_uuid) DO UPDATE SET
+                ON CONFLICT (workout_hash) DO UPDATE SET
+                  sample_uuid = EXCLUDED.sample_uuid,
                   duration_seconds = EXCLUDED.duration_seconds,
                   total_distance = EXCLUDED.total_distance,
                   total_energy_burned = EXCLUDED.total_energy_burned,
