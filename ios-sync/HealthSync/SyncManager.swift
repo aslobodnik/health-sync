@@ -75,7 +75,7 @@ class SyncManager: ObservableObject {
     // MARK: - Refresh Materialized View
 
     private func refreshMaterializedView() async {
-        guard let url = URL(string: SyncConfig.refreshURL) else { return }
+        guard let url = URL(string: SyncConfig.serverURL.replacingOccurrences(of: "/sync", with: "/sync/refresh")) else { return }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
