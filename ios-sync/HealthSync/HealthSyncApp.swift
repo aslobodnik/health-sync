@@ -31,6 +31,9 @@ struct HealthSyncApp: App {
                     await healthKitManager.setSyncEngine(engine)
                     await engine.resumePendingPages()
                     await healthKitManager.initializeIfAuthorized()
+
+                    // Healing sync: recovers data lost before the fix
+                    await engine.healingSync()
                 }
         }
     }

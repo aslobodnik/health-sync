@@ -90,6 +90,111 @@ actor SyncEngine {
         }
     }
 
+    // MARK: - Healing Sync
+
+    private let healingDefaults = UserDefaults.standard
+    private let healingRepairKey = "healthsync.healingRepairCompleted"
+    private let lastHealingKey = "healthsync.lastHealingSyncAt"
+    private let healingThrottleSeconds: TimeInterval = 6 * 3600 // 6 hours
+
+    /// Re-uploads recent data using date-bounded sample queries (no anchors).
+    /// Idempotent via UUID upsert on server. Runs:
+    /// - One-time repair from 2026-02-01 (recovers data lost before fix)
+    /// - Rolling 7-day window on subsequent launches (throttled to every 6h)
+    func healingSync() async {
+        let repairDone = healingDefaults.bool(forKey: healingRepairKey)
+
+        if !repairDone {
+            // One-time repair: fetch from Feb 1, 2026
+            let repairStart = DateComponents(calendar: .current, year: 2026, month: 2, day: 1).date!
+            print("Healing sync: one-time repair from \(repairStart)")
+            await healTypes(from: repairStart)
+            healingDefaults.set(true, forKey: healingRepairKey)
+            healingDefaults.set(Date().timeIntervalSince1970, forKey: lastHealingKey)
+            return
+        }
+
+        // Throttle rolling heal
+        let lastHealing = healingDefaults.double(forKey: lastHealingKey)
+        if lastHealing > 0, Date().timeIntervalSince1970 - lastHealing < healingThrottleSeconds {
+            return
+        }
+
+        // Rolling 7-day window
+        let windowStart = Calendar.current.date(byAdding: .day, value: -SyncConfig.healingWindowDays, to: Date())!
+        print("Healing sync: rolling \(SyncConfig.healingWindowDays)-day window")
+        await healTypes(from: windowStart)
+        healingDefaults.set(Date().timeIntervalSince1970, forKey: lastHealingKey)
+    }
+
+    private func healTypes(from startDate: Date) async {
+        await withTaskGroup(of: Void.self) { group in
+            for type in HealthDataType.allCases {
+                group.addTask { await self.healType(type, from: startDate) }
+            }
+        }
+    }
+
+    private func healType(_ type: HealthDataType, from startDate: Date) async {
+        guard let sampleType = type.hkSampleType else { return }
+
+        let predicate = HKQuery.predicateForSamples(
+            withStart: startDate, end: nil, options: .strictStartDate
+        )
+
+        do {
+            let samples = try await performSampleQuery(
+                sampleType: sampleType, predicate: predicate, limit: HKObjectQueryNoLimit
+            )
+            guard !samples.isEmpty else { return }
+
+            let payloads = convertToPayloads(samples: samples, type: type)
+            let batches = try buildBatches(
+                type: type,
+                records: payloads.records,
+                workouts: payloads.workouts,
+                deletedUUIDs: []
+            )
+
+            var uploaded = 0
+            for batch in batches {
+                if await uploadWithRetry(batch.payload) {
+                    uploaded += 1
+                } else {
+                    print("Healing sync: upload failed for \(type.displayName) batch \(uploaded + 1)")
+                    break
+                }
+            }
+            if uploaded > 0 {
+                print("Healing sync: \(type.displayName) uploaded \(uploaded) batches (\(samples.count) samples)")
+            }
+        } catch {
+            print("Healing sync error for \(type.displayName): \(error)")
+        }
+    }
+
+    private func performSampleQuery(
+        sampleType: HKSampleType,
+        predicate: NSPredicate?,
+        limit: Int
+    ) async throws -> [HKSample] {
+        try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: sampleType,
+                predicate: predicate,
+                limit: limit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: samples ?? [])
+                }
+            }
+            healthStore.execute(query)
+        }
+    }
+
     // MARK: - Drain Loop
 
     private struct FetchResult {
