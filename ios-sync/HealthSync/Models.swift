@@ -111,7 +111,6 @@ struct TypeSyncStatus: Identifiable {
     var lastSyncTime: Date?
     var lastSyncCount: Int?  // nil = never synced, 0 = up to date, >0 = records synced
     var lastError: String?
-    var pendingCount: Int
     var isAuthorized: Bool
 
     init(type: HealthDataType) {
@@ -120,7 +119,6 @@ struct TypeSyncStatus: Identifiable {
         self.lastSyncTime = nil
         self.lastSyncCount = nil
         self.lastError = nil
-        self.pendingCount = 0
         self.isAuthorized = false
     }
 }
@@ -131,7 +129,7 @@ struct SyncConfig {
     static let serverURL = "https://fit.justslobo.com/api/sync"
     static let batchSize = 1000
     static let backfillDays = 30 // Initial backfill window
-    static let healingWindowDays = 7 // Ongoing healing pass window
+    static let healingWindowDays = 14 // Ongoing healing pass window
     static let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
 
     static var apiSecret: String {

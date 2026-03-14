@@ -36,8 +36,9 @@ actor SyncEngine {
 
     // MARK: - Public API
 
-    /// Called by observers. Fetches one page and persists to outbox (crash-safe),
-    /// then returns. Upload continues asynchronously.
+    /// Called by observers. Fetches pages and uploads inline so the observer
+    /// completion handler isn't called until data is actually uploaded.
+    /// This keeps iOS from suspending the app during background delivery.
     func markDirty(_ type: HealthDataType) async {
         dirtyBits[type] = true
         guard !syncingTypes.contains(type) else { return }
@@ -48,8 +49,17 @@ actor SyncEngine {
         do {
             let result = try await fetchAndStagePage(type: type)
             if let result {
-                // Upload + drain loop runs async (doesn't block observer)
-                Task { await self.drainLoop(type: type, firstResult: result) }
+                await drainLoop(type: type, firstResult: result)
+            } else if dirtyBits[type] == true {
+                // Observer re-set dirty during the fetch; retry
+                dirtyBits[type] = false
+                let retry = try await fetchAndStagePage(type: type)
+                if let retry {
+                    await drainLoop(type: type, firstResult: retry)
+                } else {
+                    syncingTypes.remove(type)
+                    reportStatus(type, .completed(count: 0))
+                }
             } else {
                 syncingTypes.remove(type)
                 reportStatus(type, .completed(count: 0))
@@ -84,7 +94,7 @@ actor SyncEngine {
                 continue
             }
             if await uploadPage(page) {
-                commitAnchor(from: page, type: type)
+                await commitAnchor(from: page, type: type)
                 await outboxStore.removePage(page.id)
             }
         }
@@ -93,50 +103,105 @@ actor SyncEngine {
     // MARK: - Healing Sync
 
     private let healingDefaults = UserDefaults.standard
-    private let healingRepairKey = "healthsync.healingRepairCompleted"
+    // v2 key forces re-run on devices where v1 marked complete on partial failure
+    private let healingRepairKey = "healthsync.healingRepairCompleted.v2"
     private let lastHealingKey = "healthsync.lastHealingSyncAt"
-    private let healingThrottleSeconds: TimeInterval = 6 * 3600 // 6 hours
+    private let healingThrottleSeconds: TimeInterval = 3 * 3600 // 3 hours
+
+    // Status reporting for UI
+    private(set) var lastHealingSyncDate: Date?
+    private(set) var lastHealingResult: HealingResult?
+
+    enum HealingResult: Sendable {
+        case completed(typeCount: Int)
+        case partial(succeeded: [String], failed: [String])
+        case throttled
+        case running
+
+        var displayString: String {
+            switch self {
+            case .completed(let types): return "OK (\(types) types)"
+            case .partial(let ok, let failed): return "\(ok.count) OK, \(failed.count) failed: \(failed.joined(separator: ", "))"
+            case .throttled: return "Throttled (waiting)"
+            case .running: return "Running..."
+            }
+        }
+
+        var isFailure: Bool {
+            if case .partial = self { return true }
+            return false
+        }
+    }
 
     /// Re-uploads recent data using date-bounded sample queries (no anchors).
     /// Idempotent via UUID upsert on server. Runs:
     /// - One-time repair from 2026-02-01 (recovers data lost before fix)
-    /// - Rolling 7-day window on subsequent launches (throttled to every 6h)
-    func healingSync() async {
+    /// - Rolling 14-day window on subsequent launches (throttled to every 3h)
+    func healingSync(force: Bool = false) async {
         let repairDone = healingDefaults.bool(forKey: healingRepairKey)
 
         if !repairDone {
-            // One-time repair: fetch from Feb 1, 2026
             let repairStart = DateComponents(calendar: .current, year: 2026, month: 2, day: 1).date!
             print("Healing sync: one-time repair from \(repairStart)")
-            await healTypes(from: repairStart)
-            healingDefaults.set(true, forKey: healingRepairKey)
+            let results = await healTypes(from: repairStart)
+            let failed = results.filter { !$0.value }.map(\.key.displayName)
+            let succeeded = results.filter { $0.value }.map(\.key.displayName)
+
+            if failed.isEmpty {
+                healingDefaults.set(true, forKey: healingRepairKey)
+                lastHealingResult = .completed(typeCount: succeeded.count)
+                print("Healing sync: repair complete for all types")
+            } else {
+                lastHealingResult = .partial(succeeded: succeeded, failed: failed)
+                print("Healing sync: partial repair - failed: \(failed.joined(separator: ", "))")
+            }
+            lastHealingSyncDate = Date()
             healingDefaults.set(Date().timeIntervalSince1970, forKey: lastHealingKey)
+            await refreshMaterializedView()
             return
         }
 
-        // Throttle rolling heal
-        let lastHealing = healingDefaults.double(forKey: lastHealingKey)
-        if lastHealing > 0, Date().timeIntervalSince1970 - lastHealing < healingThrottleSeconds {
-            return
-        }
-
-        // Rolling 7-day window
-        let windowStart = Calendar.current.date(byAdding: .day, value: -SyncConfig.healingWindowDays, to: Date())!
-        print("Healing sync: rolling \(SyncConfig.healingWindowDays)-day window")
-        await healTypes(from: windowStart)
-        healingDefaults.set(Date().timeIntervalSince1970, forKey: lastHealingKey)
-    }
-
-    private func healTypes(from startDate: Date) async {
-        await withTaskGroup(of: Void.self) { group in
-            for type in HealthDataType.allCases {
-                group.addTask { await self.healType(type, from: startDate) }
+        // Throttle rolling heal (skip if forced from UI)
+        if !force {
+            let lastHealing = healingDefaults.double(forKey: lastHealingKey)
+            if lastHealing > 0, Date().timeIntervalSince1970 - lastHealing < healingThrottleSeconds {
+                lastHealingResult = .throttled
+                return
             }
         }
+
+        // Rolling 14-day window
+        let windowDays = SyncConfig.healingWindowDays
+        let windowStart = Calendar.current.date(byAdding: .day, value: -windowDays, to: Date())!
+        print("Healing sync: rolling \(windowDays)-day window")
+        let results = await healTypes(from: windowStart)
+        let failed = results.filter { !$0.value }.map(\.key.displayName)
+        let succeeded = results.filter { $0.value }.map(\.key.displayName)
+        if failed.isEmpty {
+            lastHealingResult = .completed(typeCount: succeeded.count)
+        } else {
+            lastHealingResult = .partial(succeeded: succeeded, failed: failed)
+        }
+        lastHealingSyncDate = Date()
+        healingDefaults.set(Date().timeIntervalSince1970, forKey: lastHealingKey)
+        await refreshMaterializedView()
     }
 
-    private func healType(_ type: HealthDataType, from startDate: Date) async {
-        guard let sampleType = type.hkSampleType else { return }
+    private func healTypes(from startDate: Date) async -> [HealthDataType: Bool] {
+        await withTaskGroup(of: (HealthDataType, Bool).self, returning: [HealthDataType: Bool].self) { group in
+            for type in HealthDataType.allCases {
+                group.addTask { await (type, self.healType(type, from: startDate)) }
+            }
+            var results: [HealthDataType: Bool] = [:]
+            for await (type, success) in group {
+                results[type] = success
+            }
+            return results
+        }
+    }
+
+    private func healType(_ type: HealthDataType, from startDate: Date) async -> Bool {
+        guard let sampleType = type.hkSampleType else { return true }
 
         let predicate = HKQuery.predicateForSamples(
             withStart: startDate, end: nil, options: .strictStartDate
@@ -146,7 +211,7 @@ actor SyncEngine {
             let samples = try await performSampleQuery(
                 sampleType: sampleType, predicate: predicate, limit: HKObjectQueryNoLimit
             )
-            guard !samples.isEmpty else { return }
+            guard !samples.isEmpty else { return true }
 
             let payloads = convertToPayloads(samples: samples, type: type)
             let batches = try buildBatches(
@@ -161,15 +226,17 @@ actor SyncEngine {
                 if await uploadWithRetry(batch.payload) {
                     uploaded += 1
                 } else {
-                    print("Healing sync: upload failed for \(type.displayName) batch \(uploaded + 1)")
-                    break
+                    print("Healing sync: upload failed for \(type.displayName) batch \(uploaded + 1)/\(batches.count)")
+                    return false
                 }
             }
             if uploaded > 0 {
                 print("Healing sync: \(type.displayName) uploaded \(uploaded) batches (\(samples.count) samples)")
             }
+            return true
         } catch {
             print("Healing sync error for \(type.displayName): \(error)")
+            return false
         }
     }
 
@@ -208,7 +275,7 @@ actor SyncEngine {
 
         // Upload first page (already staged)
         if await uploadPage(firstResult.page) {
-            commitAnchor(from: firstResult.page, type: type)
+            await commitAnchor(from: firstResult.page, type: type)
             await outboxStore.removePage(firstResult.page.id)
             totalSynced += firstResult.recordCount
 
@@ -228,7 +295,7 @@ actor SyncEngine {
             do {
                 guard let result = try await fetchAndStagePage(type: type) else { break }
                 if await uploadPage(result.page) {
-                    commitAnchor(from: result.page, type: type)
+                    await commitAnchor(from: result.page, type: type)
                     await outboxStore.removePage(result.page.id)
                     totalSynced += result.recordCount
                     if result.recordCount >= queryPageSize {
@@ -246,6 +313,11 @@ actor SyncEngine {
 
         syncingTypes.remove(type)
         reportStatus(type, .completed(count: totalSynced))
+
+        if totalSynced > 0 {
+            // Fire-and-forget: don't hold observer completion handler for this
+            Task { await self.refreshMaterializedView() }
+        }
     }
 
     // MARK: - Fetch and Stage
@@ -286,7 +358,11 @@ actor SyncEngine {
             deletedUUIDs: deletedUUIDs
         )
 
-        guard !batches.isEmpty else { return nil }
+        // All samples filtered out (e.g., unsynced workout types) - still advance anchor
+        if batches.isEmpty {
+            await anchorStore.setAnchor(newAnchor, for: type)
+            return nil
+        }
 
         // Encode anchors
         let candidateData = try NSKeyedArchiver.archivedData(
@@ -464,11 +540,11 @@ actor SyncEngine {
 
     // MARK: - Anchor Management
 
-    private func commitAnchor(from page: StagedPage, type: HealthDataType) {
+    private func commitAnchor(from page: StagedPage, type: HealthDataType) async {
         guard let anchor = try? NSKeyedUnarchiver.unarchivedObject(
             ofClass: HKQueryAnchor.self, from: page.candidateAnchor
         ) else { return }
-        Task { await anchorStore.setAnchor(anchor, for: type) }
+        await anchorStore.setAnchor(anchor, for: type)
     }
 
     // MARK: - HealthKit Query
@@ -493,6 +569,29 @@ actor SyncEngine {
                 }
             }
             healthStore.execute(query)
+        }
+    }
+
+    // MARK: - Materialized View Refresh
+
+    private var lastRefreshTime: Date = .distantPast
+
+    private func refreshMaterializedView() async {
+        // Debounce: skip if refreshed within last 10 seconds (prevents stampede from parallel type drains)
+        guard Date().timeIntervalSince(lastRefreshTime) > 10 else { return }
+        lastRefreshTime = Date()
+
+        guard let url = URL(string: SyncConfig.serverURL.replacingOccurrences(of: "/sync", with: "/sync/refresh")) else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(SyncConfig.apiSecret)", forHTTPHeaderField: "Authorization")
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                print("Materialized view refreshed")
+            }
+        } catch {
+            print("Failed to refresh materialized view: \(error)")
         }
     }
 

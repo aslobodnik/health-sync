@@ -32,8 +32,10 @@ struct HealthSyncApp: App {
                     await engine.resumePendingPages()
                     await healthKitManager.initializeIfAuthorized()
 
-                    // Healing sync: recovers data lost before the fix
+                    // Healing sync: recovers data lost before the drain loop fix
+                    hkm.healingStatus = SyncEngine.HealingResult.running.displayString
                     await engine.healingSync()
+                    await hkm.updateHealingStatus(from: engine)
                 }
         }
     }

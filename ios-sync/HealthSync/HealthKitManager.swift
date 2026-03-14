@@ -11,6 +11,9 @@ class HealthKitManager: ObservableObject {
     @Published var isAuthorized = false
     @Published var authorizationError: String?
     @Published var typeStatuses: [HealthDataType: TypeSyncStatus] = [:]
+    @Published var healingStatus: String?
+    @Published var healingIsFailure: Bool = false
+    @Published var lastHealingSyncDate: Date?
 
     // Types to sync - all cases from the enum
     private var typesToSync: [HealthDataType] {
@@ -119,6 +122,21 @@ class HealthKitManager: ObservableObject {
 
     func resetAndResync(type: HealthDataType) async {
         await syncEngine?.resetAndResync(type)
+    }
+
+    // MARK: - Healing Sync
+
+    func runHealingSync() async {
+        guard let engine = syncEngine else { return }
+        await engine.healingSync(force: true)
+        await updateHealingStatus(from: engine)
+    }
+
+    func updateHealingStatus(from engine: SyncEngine) async {
+        let result = await engine.lastHealingResult
+        lastHealingSyncDate = await engine.lastHealingSyncDate
+        healingStatus = result?.displayString
+        healingIsFailure = result?.isFailure ?? false
     }
 
     // MARK: - Cleanup
