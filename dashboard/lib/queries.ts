@@ -1,5 +1,10 @@
 import { query } from "./db";
 
+// All watch source names contain Unicode smart quotes (U+2019) so exact matching
+// is fragile. All three variants contain "atch" which is a safe substring match
+// that hits the partial index idx_health_raw_watch.
+const WATCH_FILTER = "source_name LIKE '%atch%'";
+
 export interface DailySteps {
   date: string;
   steps: number;
@@ -43,7 +48,7 @@ export async function getDailySteps(days: number = 365): Promise<DailySteps[]> {
         start_time, value_numeric
       FROM health_raw
       WHERE record_type = 'HKQuantityTypeIdentifierStepCount'
-        AND source_name ILIKE '%watch%'
+        AND ${WATCH_FILTER}
         AND start_time > NOW() - INTERVAL '${days} days'
     )
     SELECT
@@ -64,7 +69,7 @@ export async function getDailyEnergy(days: number = 365): Promise<DailyEnergy[]>
         start_time, value_numeric
       FROM health_raw
       WHERE record_type = 'HKQuantityTypeIdentifierActiveEnergyBurned'
-        AND source_name ILIKE '%watch%'
+        AND ${WATCH_FILTER}
         AND start_time > NOW() - INTERVAL '${days} days'
     )
     SELECT
@@ -89,7 +94,7 @@ export async function getDailySleep(days: number = 365): Promise<DailySleep[]> {
         (DATE(end_time AT TIME ZONE 'America/New_York') - INTERVAL '1 day')::date as sleep_night
       FROM health_raw
       WHERE record_type = 'HKCategoryTypeIdentifierSleepAnalysis'
-        AND source_name ILIKE '%watch%'
+        AND ${WATCH_FILTER}
         AND value_text IN (
           'HKCategoryValueSleepAnalysisAsleep',
           'HKCategoryValueSleepAnalysisAsleepCore',
@@ -122,6 +127,7 @@ export async function getRestingHeartRate(): Promise<RestingHeartRate | null> {
         AVG(value_numeric) as daily_avg
       FROM health_raw
       WHERE record_type = 'HKQuantityTypeIdentifierRestingHeartRate'
+        AND ${WATCH_FILTER}
         AND start_time > NOW() - INTERVAL '14 days'
       GROUP BY 1
       ORDER BY 1 DESC
@@ -176,12 +182,12 @@ export async function getTodaySteps(): Promise<number> {
       SELECT DATE(MAX(start_time) AT TIME ZONE 'America/New_York') as d
       FROM health_raw
       WHERE record_type = 'HKQuantityTypeIdentifierStepCount'
-        AND source_name ILIKE '%watch%'
+        AND ${WATCH_FILTER}
     )
     SELECT COALESCE(SUM(value_numeric), 0)::int as steps
     FROM health_raw, latest_date
     WHERE record_type = 'HKQuantityTypeIdentifierStepCount'
-      AND source_name ILIKE '%watch%'
+      AND ${WATCH_FILTER}
       AND DATE(start_time AT TIME ZONE 'America/New_York') = latest_date.d
   `;
   const rows = await query<{ steps: number }>(sql);
@@ -199,7 +205,7 @@ export async function getLastNightSleep(): Promise<number> {
         (DATE(end_time AT TIME ZONE 'America/New_York') - INTERVAL '1 day')::date as sleep_night
       FROM health_raw
       WHERE record_type = 'HKCategoryTypeIdentifierSleepAnalysis'
-        AND source_name ILIKE '%watch%'
+        AND ${WATCH_FILTER}
         AND value_text IN (
           'HKCategoryValueSleepAnalysisAsleep',
           'HKCategoryValueSleepAnalysisAsleepCore',
@@ -327,7 +333,7 @@ export async function getComparisons(): Promise<MetricComparison[]> {
       FROM health_raw
       CROSS JOIN time_bounds tb
       WHERE record_type = 'HKQuantityTypeIdentifierStepCount'
-        AND source_name ILIKE '%watch%'
+        AND ${WATCH_FILTER}
         AND start_time >= tb.last_month_start
     ),
     sleep AS (
@@ -350,7 +356,7 @@ export async function getComparisons(): Promise<MetricComparison[]> {
       FROM health_raw
       CROSS JOIN time_bounds tb
       WHERE record_type = 'HKCategoryTypeIdentifierSleepAnalysis'
-        AND source_name ILIKE '%watch%'
+        AND ${WATCH_FILTER}
         AND value_text IN (
           'HKCategoryValueSleepAnalysisAsleep',
           'HKCategoryValueSleepAnalysisAsleepCore',
@@ -451,6 +457,7 @@ export async function getDailyHRV(days: number = 30): Promise<DailyHRV[]> {
       ROUND(AVG(value_numeric))::int as hrv
     FROM health_raw
     WHERE record_type = 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN'
+      AND ${WATCH_FILTER}
       AND start_time > NOW() - INTERVAL '${days} days'
     GROUP BY 1
     ORDER BY 1
@@ -471,6 +478,7 @@ export async function getDailyRHR(days: number = 30): Promise<DailyRHR[]> {
       ROUND(AVG(value_numeric))::int as rhr
     FROM health_raw
     WHERE record_type = 'HKQuantityTypeIdentifierRestingHeartRate'
+      AND ${WATCH_FILTER}
       AND start_time > NOW() - INTERVAL '${days} days'
     GROUP BY 1
     ORDER BY 1
@@ -506,7 +514,7 @@ export async function getSleepingHR(days: number = 30): Promise<DailySleepingHR[
       FROM sleep_windows sw
       JOIN health_raw hr
         ON hr.record_type = 'HKQuantityTypeIdentifierHeartRate'
-        AND hr.source_name ILIKE '%watch%'
+        AND hr.${WATCH_FILTER}
         AND hr.start_time >= sw.start_time
         AND hr.start_time <= sw.end_time
     )
@@ -625,6 +633,7 @@ export async function getLatestVO2Max(): Promise<VO2MaxData | null> {
         ROUND(AVG(value_numeric)::numeric, 1)::float as value
       FROM health_raw
       WHERE record_type = 'HKQuantityTypeIdentifierVO2Max'
+        AND ${WATCH_FILTER}
         AND start_time >= DATE_TRUNC('month', NOW() - INTERVAL '2 months')
       GROUP BY 1, 2
       ORDER BY 1 DESC
