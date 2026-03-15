@@ -5,7 +5,7 @@ Standalone dashboard card showing workout consistency over the last 7 days with 
 ## Visual Design
 
 ### Layout
-- Card-terminal container (`.card-terminal` base class)
+- Card-terminal container (`.card-terminal` base class, reuse existing CSS from `globals.css`)
 - Header: "workout streak" (monospace, uppercase, zinc-500) + date range right-aligned (zinc-700, e.g., "mar 8 – 14")
 - 7 flex segments below header, one per day, equal width with 6px gap
 - Each segment: 28px emoji above (8-10px gap) + day label bar below (24px height, rounded-4px)
@@ -18,7 +18,7 @@ Standalone dashboard card showing workout consistency over the last 7 days with 
 - Hover: tooltip with workout details
 
 **Multi-workout day**:
-- Two emoji stacked side-by-side at ~18px each
+- Two emoji side-by-side at ~18px each
 - Tooltip shows split view with divider between workouts
 
 **Rest day (no workout)**:
@@ -36,13 +36,14 @@ Standalone dashboard card showing workout consistency over the last 7 days with 
 - Content (monospace, 10px):
   - Workout type name (emerald, bold)
   - Duration, calories, avg HR (stat label in zinc-600, value in white)
+  - Distance with "mi" unit (if > 0.1)
 - Multi-workout: type names joined with " + ", divider line, per-workout summary rows
 - Box shadow for depth
+- z-index: 20 (above scanlines overlay at z-10)
 
 ### Streak State (6+ of 7 days)
-- Card border shifts to golden (rgba(251,191,36,0.25))
-- Corner brackets glow golden with drop-shadow
-- Inline badge after title: fire emoji (flickering animation) + count, golden background
+- Reuse existing `.streak-card` CSS class from `globals.css` (golden border, glowing corner brackets)
+- Inline badge after title: reuse `.streak-badge-inline` with fire emoji (`.flame-flicker` animation) + count
 - All active segments shift from emerald to amber/golden gradient
 - Tooltips shift to golden border and golden type text
 
@@ -53,13 +54,18 @@ Map `workout_type` from the database to emoji:
 - `HKWorkoutActivityTypeCycling` -> 🚴
 - `HKWorkoutActivityTypeTraditionalStrengthTraining` / `FunctionalStrengthTraining` -> 🏋️
 - `HKWorkoutActivityTypeHiking` -> 🥾
-- `HKWorkoutActivityTypeElliptical` -> 🏃 (fallback)
+- `HKWorkoutActivityTypeStairClimbing` / `Stairs` -> 🪜
+- `HKWorkoutActivityTypeRowing` -> 🚣
+- `HKWorkoutActivityTypeHighIntensityIntervalTraining` -> 🔥
+- `HKWorkoutActivityTypeClimbing` -> 🧗
 - `HKWorkoutActivityTypeYoga` -> 🧘
 - Default/unknown -> 💪
 
 ## Data
 
-### Query
+### Query function
+Add `getWorkoutStreak()` to `dashboard/lib/queries.ts`, following the existing pattern (async function, pool.query, return rows).
+
 ```sql
 SELECT
   TO_CHAR(start_time AT TIME ZONE 'America/New_York', 'YYYY-MM-DD') as day,
@@ -69,13 +75,16 @@ SELECT
   avg_heart_rate,
   total_distance
 FROM workouts
-WHERE start_time >= NOW() - INTERVAL '7 days'
+WHERE start_time >= DATE_TRUNC('day', NOW() AT TIME ZONE 'America/New_York') - INTERVAL '6 days'
   AND workout_type != 'HKWorkoutActivityTypeWalking'
 ORDER BY start_time
 ```
 
+The API route groups rows by day and builds the 7-day array (filling in empty days).
+
 ### API
 New endpoint: `GET /api/health/workout-streak`
+New file: `dashboard/app/api/health/workout-streak/route.ts`
 
 Response shape:
 ```json
@@ -100,27 +109,29 @@ Response shape:
       "workouts": []
     }
   ],
-  "streakCount": 5,
+  "activeDayCount": 5,
   "dateRange": "mar 8 – 14"
 }
 ```
 
-- Always returns exactly 7 entries (today and 6 days prior)
-- `streakCount`: count of days with at least one workout in the 7-day window
-- Streak badge shows when `streakCount >= 6`
+- Always returns exactly 7 entries (today and 6 days prior), using day-truncated boundaries
+- `activeDayCount`: count of days with at least one workout in the 7-day window
+- Streak badge shows when `activeDayCount >= 6`
 
 ### Component
 New file: `dashboard/components/WorkoutStreakCard.tsx`
-- Client component (needs hover state)
-- Fetches from `/api/health/workout-streak` via props (server-side data fetching in page.tsx)
-- No external dependencies beyond existing Tailwind/React setup
+- Client component (needs hover state for tooltips)
+- Receives data via props from `page.tsx`
+- Add `WorkoutStreakData` interface to `page.tsx` alongside existing types (`StepsData`, `WorkoutsData`, etc.)
+- Add fetch call to the `Promise.all` block in `page.tsx`'s `useEffect`, matching the existing client-side fetch pattern
+- Add `workoutStreak` to component state via `useState`
 
 ### Placement
 - Standalone card on the dashboard
-- Position: after the weekly bar charts, before recent workouts (fits the flow of "this week" -> "recent")
+- Position: after the weekly bar charts, before recent workouts
 
 ## Responsive
 - Segments use `flex: 1` to fill available width
 - On narrow screens (~375px), segments compress naturally
-- Emoji may need to scale down on mobile (22px at `sm:28px`)
-- Tooltip positioning: check for edge overflow on first/last segments
+- Emoji scales: 22px default, `sm:28px` on wider screens
+- Tooltip positioning: first/last segments may need left/right offset to avoid edge overflow
