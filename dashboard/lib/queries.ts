@@ -687,3 +687,30 @@ export async function getYearOverYearEnergy(): Promise<DailyCumulative[]> {
   `;
   return query<DailyCumulative>(sql);
 }
+
+export interface WorkoutStreakRow {
+  day: string;
+  workout_type: string;
+  duration_seconds: number;
+  total_energy_burned: number | null;
+  avg_heart_rate: number | null;
+  total_distance: number | null;
+}
+
+export async function getWorkoutStreak(): Promise<WorkoutStreakRow[]> {
+  const sql = `
+    SELECT
+      TO_CHAR(start_time AT TIME ZONE 'America/New_York', 'YYYY-MM-DD') as day,
+      workout_type,
+      duration_seconds,
+      total_energy_burned,
+      avg_heart_rate,
+      total_distance
+    FROM workouts
+    WHERE start_time AT TIME ZONE 'America/New_York'
+          >= DATE_TRUNC('day', NOW() AT TIME ZONE 'America/New_York') - INTERVAL '6 days'
+      AND workout_type != 'HKWorkoutActivityTypeWalking'
+    ORDER BY start_time
+  `;
+  return query<WorkoutStreakRow>(sql);
+}

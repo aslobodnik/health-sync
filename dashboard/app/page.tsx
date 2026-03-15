@@ -6,6 +6,7 @@ import HeartRateCard from "@/components/HeartRateCard";
 import SwimmingCard from "@/components/SwimmingCard";
 import WeeklyBarChart from "@/components/WeeklyBarChart";
 import YearComparisonA from "@/components/YearComparisonA";
+import WorkoutStreakCard from "@/components/WorkoutStreakCard";
 
 interface StepsData {
   daily: { date: string; steps: number }[];
@@ -73,23 +74,41 @@ interface ComparisonData {
   energyCumulative: CumulativeData[];
 }
 
+interface WorkoutStreakData {
+  days: {
+    date: string;
+    dayLabel: string;
+    workouts: {
+      type: string;
+      durationMinutes: number;
+      calories: number | null;
+      avgHR: number | null;
+      distance: number | null;
+    }[];
+  }[];
+  activeDayCount: number;
+  dateRange: string;
+}
+
 export default function Home() {
   const [stepsData, setStepsData] = useState<StepsData | null>(null);
   const [workoutsData, setWorkoutsData] = useState<WorkoutsData | null>(null);
   const [periodData, setPeriodData] = useState<PeriodData | null>(null);
   const [swimmingData, setSwimmingData] = useState<SwimmingData | null>(null);
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
+  const [workoutStreak, setWorkoutStreak] = useState<WorkoutStreakData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [steps, workouts, periods, swimming, comparison] = await Promise.all([
+        const [steps, workouts, periods, swimming, comparison, streak] = await Promise.all([
           fetch("/api/health/steps").then((r) => r.json()),
           fetch("/api/health/workouts").then((r) => r.json()),
           fetch("/api/health/periods").then((r) => r.json()),
           fetch("/api/health/swimming").then((r) => r.json()),
           fetch("/api/health/comparison").then((r) => r.json()),
+          fetch("/api/health/workout-streak").then((r) => r.json()),
         ]);
 
         setStepsData(steps);
@@ -97,6 +116,7 @@ export default function Home() {
         setPeriodData(periods);
         setSwimmingData(swimming);
         setComparisonData(comparison);
+        setWorkoutStreak(streak);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -194,6 +214,19 @@ export default function Home() {
             />
           </div>
         </div>
+
+        {/* Workout streak */}
+        {workoutStreak && (
+          <div className="mb-8 max-w-md mx-auto">
+            <div className="reveal reveal-delay-3">
+              <WorkoutStreakCard
+                days={workoutStreak.days}
+                activeDayCount={workoutStreak.activeDayCount}
+                dateRange={workoutStreak.dateRange}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Year comparison */}
         {comparisonData && (
