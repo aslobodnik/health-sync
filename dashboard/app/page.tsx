@@ -195,30 +195,10 @@ export default function Home() {
 
       {/* Main content */}
       <main className="relative z-10 flex-1 px-4 pb-8 max-w-5xl mx-auto w-full">
-        {/* Weekly bar charts */}
-        <div className="flex flex-col gap-4 mb-8 max-w-md mx-auto">
-          <div className="reveal reveal-delay-1">
-            <WeeklyBarChart
-              title="steps"
-              data={stepsData?.daily.map((d) => ({ date: d.date, value: d.steps })) ?? []}
-              unit="steps"
-              goal={13000}
-            />
-          </div>
-          <div className="reveal reveal-delay-2">
-            <WeeklyBarChart
-              title="active calories"
-              data={stepsData?.energy.map((d) => ({ date: d.date, value: d.calories })) ?? []}
-              unit="kcal"
-              goal={1000}
-            />
-          </div>
-        </div>
-
         {/* Workout streak */}
         {workoutStreak && (
           <div className="mb-8 max-w-md mx-auto">
-            <div className="reveal reveal-delay-3">
+            <div className="reveal reveal-delay-1">
               <WorkoutStreakCard
                 days={workoutStreak.days}
                 activeDayCount={workoutStreak.activeDayCount}
@@ -227,6 +207,26 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* Weekly bar charts */}
+        <div className="flex flex-col gap-4 mb-8 max-w-md mx-auto">
+          <div className="reveal reveal-delay-2">
+            <WeeklyBarChart
+              title="steps"
+              data={stepsData?.daily.map((d) => ({ date: d.date, value: d.steps })) ?? []}
+              unit="steps"
+              goal={13000}
+            />
+          </div>
+          <div className="reveal reveal-delay-3">
+            <WeeklyBarChart
+              title="active calories"
+              data={stepsData?.energy.map((d) => ({ date: d.date, value: d.calories })) ?? []}
+              unit="kcal"
+              goal={1000}
+            />
+          </div>
+        </div>
 
         {/* Year comparison */}
         {comparisonData && (
