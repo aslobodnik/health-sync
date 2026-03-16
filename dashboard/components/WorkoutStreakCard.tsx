@@ -34,6 +34,7 @@ const EMOJI_MAP: Record<string, string> = {
   HKWorkoutActivityTypeStairs: "\u{1FA9C}",
   HKWorkoutActivityTypeClimbing: "\u{1F9D7}",
   HKWorkoutActivityTypeHighIntensityIntervalTraining: "\u{1F525}",
+  HKWorkoutActivityTypeStairStepper: "\u{1FA9C}",
   HKWorkoutActivityTypeOther: "\u{1F4AA}",
 };
 

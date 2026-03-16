@@ -701,7 +701,13 @@ export async function getWorkoutStreak(): Promise<WorkoutStreakRow[]> {
   const sql = `
     SELECT
       TO_CHAR(start_time AT TIME ZONE 'America/New_York', 'YYYY-MM-DD') as day,
-      workout_type,
+      CASE
+        WHEN workout_type = 'HKWorkoutActivityTypeOther'
+          AND metadata->>'HKIndoorWorkout' = '1'
+          AND metadata ? 'HKElevationAscended'
+        THEN 'HKWorkoutActivityTypeStairStepper'
+        ELSE workout_type
+      END as workout_type,
       duration_seconds,
       total_energy_burned,
       avg_heart_rate,
