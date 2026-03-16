@@ -42,8 +42,17 @@ function getEmoji(type: string): string {
   return EMOJI_MAP[type] || "\u{1F4AA}";
 }
 
+const DISPLAY_NAMES: Record<string, string> = {
+  HKWorkoutActivityTypeTraditionalStrengthTraining: "Strength",
+  HKWorkoutActivityTypeFunctionalStrengthTraining: "Strength",
+  HKWorkoutActivityTypeHighIntensityIntervalTraining: "HIIT",
+  HKWorkoutActivityTypeStairClimbing: "Stairs",
+  HKWorkoutActivityTypeStairStepper: "Stair Master",
+  HKWorkoutActivityTypeOther: "Workout",
+};
+
 function formatType(type: string): string {
-  return type.replace("HKWorkoutActivityType", "");
+  return DISPLAY_NAMES[type] || type.replace("HKWorkoutActivityType", "");
 }
 
 function isTodayDate(dateStr: string): boolean {
