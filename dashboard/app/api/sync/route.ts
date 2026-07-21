@@ -49,6 +49,25 @@ function generateWorkoutHash(workout: WorkoutPayload): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
+// Distinct HealthKit samples can share a hash (same type/source/times/value,
+// different UUIDs). A single multi-row upsert cannot affect the same row
+// twice ("ON CONFLICT DO UPDATE command cannot affect row a second time"),
+// so keep one row per hash - preferring one that carries a sampleUUID.
+function dedupeByHash<T extends { sampleUUID?: string }>(
+  items: T[],
+  hashFn: (item: T) => string
+): { item: T; hash: string }[] {
+  const byHash = new Map<string, { item: T; hash: string }>();
+  for (const item of items) {
+    const hash = hashFn(item);
+    const existing = byHash.get(hash);
+    if (!existing || (item.sampleUUID && !existing.item.sampleUUID)) {
+      byHash.set(hash, { item, hash });
+    }
+  }
+  return [...byHash.values()];
+}
+
 // Single set-based upsert per batch (one round trip instead of one per row).
 // The DO UPDATE only fires when it would backfill a sample UUID, so healing
 // re-uploads of identical rows are no-ops instead of dead-tuple churn.
@@ -118,46 +137,46 @@ export async function POST(request: NextRequest) {
       await client.query("BEGIN");
 
       if (batch.records && batch.records.length > 0) {
-        const r = batch.records;
+        const r = dedupeByHash(batch.records, generateRecordHash);
         const result = await client.query(INSERT_RECORDS, [
-          r.map((x) => x.recordType),
-          r.map((x) => x.sourceName),
-          r.map((x) => x.sourceBundle ?? null),
-          r.map((x) => x.unit ?? null),
-          r.map((x) => x.value ?? null),
-          r.map((x) => x.valueText ?? null),
-          r.map((x) => x.startTime),
-          r.map((x) => x.endTime),
-          r.map((x) => (x.metadata ? JSON.stringify(x.metadata) : null)),
-          r.map((x) => generateRecordHash(x)),
-          r.map((x) => x.sampleUUID ?? null),
+          r.map(({ item }) => item.recordType),
+          r.map(({ item }) => item.sourceName),
+          r.map(({ item }) => item.sourceBundle ?? null),
+          r.map(({ item }) => item.unit ?? null),
+          r.map(({ item }) => item.value ?? null),
+          r.map(({ item }) => item.valueText ?? null),
+          r.map(({ item }) => item.startTime),
+          r.map(({ item }) => item.endTime),
+          r.map(({ item }) => (item.metadata ? JSON.stringify(item.metadata) : null)),
+          r.map(({ hash }) => hash),
+          r.map(({ item }) => item.sampleUUID ?? null),
         ]);
         insertedRecords = result.rowCount ?? 0;
-        skippedDuplicates += r.length - insertedRecords;
+        skippedDuplicates += batch.records.length - insertedRecords;
       }
 
       if (batch.workouts && batch.workouts.length > 0) {
-        const w = batch.workouts;
+        const w = dedupeByHash(batch.workouts, generateWorkoutHash);
         const result = await client.query(INSERT_WORKOUTS, [
-          w.map((x) => x.workoutType),
-          w.map((x) => x.sourceName),
-          w.map((x) => x.sourceBundle ?? null),
-          w.map((x) => x.startTime),
-          w.map((x) => x.endTime),
-          w.map((x) => x.durationSeconds),
-          w.map((x) => x.totalDistance ?? null),
-          w.map((x) => (x.totalDistance ? "mi" : null)),
-          w.map((x) => x.totalEnergyBurned ?? null),
-          w.map((x) => (x.totalEnergyBurned ? "kcal" : null)),
-          w.map((x) => x.statistics?.heartRateAvg ?? null),
-          w.map((x) => x.statistics?.heartRateMin ?? null),
-          w.map((x) => x.statistics?.heartRateMax ?? null),
-          w.map((x) => (x.metadata ? JSON.stringify(x.metadata) : null)),
-          w.map((x) => generateWorkoutHash(x)),
-          w.map((x) => x.sampleUUID ?? null),
+          w.map(({ item }) => item.workoutType),
+          w.map(({ item }) => item.sourceName),
+          w.map(({ item }) => item.sourceBundle ?? null),
+          w.map(({ item }) => item.startTime),
+          w.map(({ item }) => item.endTime),
+          w.map(({ item }) => item.durationSeconds),
+          w.map(({ item }) => item.totalDistance ?? null),
+          w.map(({ item }) => (item.totalDistance ? "mi" : null)),
+          w.map(({ item }) => item.totalEnergyBurned ?? null),
+          w.map(({ item }) => (item.totalEnergyBurned ? "kcal" : null)),
+          w.map(({ item }) => item.statistics?.heartRateAvg ?? null),
+          w.map(({ item }) => item.statistics?.heartRateMin ?? null),
+          w.map(({ item }) => item.statistics?.heartRateMax ?? null),
+          w.map(({ item }) => (item.metadata ? JSON.stringify(item.metadata) : null)),
+          w.map(({ hash }) => hash),
+          w.map(({ item }) => item.sampleUUID ?? null),
         ]);
         insertedWorkouts = result.rowCount ?? 0;
-        skippedDuplicates += w.length - insertedWorkouts;
+        skippedDuplicates += batch.workouts.length - insertedWorkouts;
       }
 
       // Delete records by sample UUID
