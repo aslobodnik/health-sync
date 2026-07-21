@@ -1,21 +1,9 @@
-interface Workout {
-  id: string;
-  workout_type: string;
-  start_time: string;
-  duration_seconds: number;
-  total_distance: number | null;
-  avg_hr: number | null;
-}
+import type { RecentWorkout } from "@/lib/queries";
+import { workoutLabel } from "@/lib/workoutTypes";
+import { relativeDay } from "@/lib/dates";
 
 interface WorkoutListProps {
-  workouts: Workout[];
-}
-
-function formatWorkoutType(type: string): string {
-  // Remove HKWorkoutActivityType prefix
-  const name = type.replace("HKWorkoutActivityType", "");
-  // Add space before capitals and trim
-  return name.replace(/([A-Z])/g, " $1").trim();
+  workouts: RecentWorkout[];
 }
 
 function formatDuration(seconds: number): string {
@@ -34,14 +22,8 @@ function formatDistance(miles: number | null): string | null {
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return date.toLocaleDateString("en-US", { weekday: "short" });
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const rel = relativeDay(dateStr);
+  return rel.charAt(0).toUpperCase() + rel.slice(1);
 }
 
 export default function WorkoutList({ workouts }: WorkoutListProps) {
@@ -72,7 +54,7 @@ export default function WorkoutList({ workouts }: WorkoutListProps) {
           >
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-medium text-zinc-300 truncate">
-                {formatWorkoutType(workout.workout_type)}
+                {workoutLabel(workout.workout_type)}
               </div>
               <div className="text-xs text-zinc-600 shrink-0">{formatDate(workout.start_time)}</div>
             </div>

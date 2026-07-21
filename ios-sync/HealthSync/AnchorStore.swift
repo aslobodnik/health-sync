@@ -27,23 +27,4 @@ actor AnchorStore {
     func clearAnchor(for type: HealthDataType) {
         defaults.removeObject(forKey: keyPrefix + type.rawValue)
     }
-
-    func clearAllAnchors() {
-        for type in HealthDataType.allCases {
-            defaults.removeObject(forKey: keyPrefix + type.rawValue)
-        }
-    }
-
-    // MARK: - Last Sync Time Tracking
-
-    private let lastSyncKeyPrefix = "healthsync.lastsync."
-
-    func getLastSyncTime(for type: HealthDataType) -> Date? {
-        let timestamp = defaults.double(forKey: lastSyncKeyPrefix + type.rawValue)
-        return timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
-    }
-
-    func setLastSyncTime(_ date: Date, for type: HealthDataType) {
-        defaults.set(date.timeIntervalSince1970, forKey: lastSyncKeyPrefix + type.rawValue)
-    }
 }

@@ -103,8 +103,6 @@ actor SyncEngine {
     // MARK: - Healing Sync
 
     private let healingDefaults = UserDefaults.standard
-    // v2 key forces re-run on devices where v1 marked complete on partial failure
-    private let healingRepairKey = "healthsync.healingRepairCompleted.v2"
     private let lastHealingKey = "healthsync.lastHealingSyncAt"
     private let healingThrottleSeconds: TimeInterval = 3 * 3600 // 3 hours
 
@@ -133,35 +131,10 @@ actor SyncEngine {
         }
     }
 
-    /// Re-uploads recent data using date-bounded sample queries (no anchors).
-    /// Idempotent via UUID upsert on server. Runs:
-    /// - One-time repair from 2026-02-01 (recovers data lost before fix)
-    /// - Rolling 14-day window on subsequent launches (throttled to every 3h)
+    /// Re-uploads a rolling window using date-bounded sample queries (no
+    /// anchors). Idempotent via UUID upsert on server. Throttled to every 3h
+    /// unless forced from the UI.
     func healingSync(force: Bool = false) async {
-        let repairDone = healingDefaults.bool(forKey: healingRepairKey)
-
-        if !repairDone {
-            let repairStart = DateComponents(calendar: .current, year: 2026, month: 2, day: 1).date!
-            print("Healing sync: one-time repair from \(repairStart)")
-            let results = await healTypes(from: repairStart)
-            let failed = results.filter { !$0.value }.map(\.key.displayName)
-            let succeeded = results.filter { $0.value }.map(\.key.displayName)
-
-            if failed.isEmpty {
-                healingDefaults.set(true, forKey: healingRepairKey)
-                lastHealingResult = .completed(typeCount: succeeded.count)
-                print("Healing sync: repair complete for all types")
-            } else {
-                lastHealingResult = .partial(succeeded: succeeded, failed: failed)
-                print("Healing sync: partial repair - failed: \(failed.joined(separator: ", "))")
-            }
-            lastHealingSyncDate = Date()
-            healingDefaults.set(Date().timeIntervalSince1970, forKey: lastHealingKey)
-            await refreshMaterializedView()
-            return
-        }
-
-        // Throttle rolling heal (skip if forced from UI)
         if !force {
             let lastHealing = healingDefaults.double(forKey: lastHealingKey)
             if lastHealing > 0, Date().timeIntervalSince1970 - lastHealing < healingThrottleSeconds {
@@ -170,7 +143,6 @@ actor SyncEngine {
             }
         }
 
-        // Rolling 14-day window
         let windowDays = SyncConfig.healingWindowDays
         let windowStart = Calendar.current.date(byAdding: .day, value: -windowDays, to: Date())!
         print("Healing sync: rolling \(windowDays)-day window")
@@ -184,7 +156,6 @@ actor SyncEngine {
         }
         lastHealingSyncDate = Date()
         healingDefaults.set(Date().timeIntervalSince1970, forKey: lastHealingKey)
-        await refreshMaterializedView()
     }
 
     private func healTypes(from startDate: Date) async -> [HealthDataType: Bool] {
@@ -313,11 +284,6 @@ actor SyncEngine {
 
         syncingTypes.remove(type)
         reportStatus(type, .completed(count: totalSynced))
-
-        if totalSynced > 0 {
-            // Fire-and-forget: don't hold observer completion handler for this
-            Task { await self.refreshMaterializedView() }
-        }
     }
 
     // MARK: - Fetch and Stage
@@ -327,14 +293,15 @@ actor SyncEngine {
 
         let anchor = await anchorStore.getAnchor(for: type)
 
-        // On first sync, limit to recent data
-        let predicate: NSPredicate? = anchor == nil
-            ? HKQuery.predicateForSamples(
-                withStart: Calendar.current.date(byAdding: .day, value: -SyncConfig.backfillDays, to: Date()),
-                end: nil,
-                options: .strictStartDate
-            )
-            : nil
+        // Always bound the query to the backfill window. If HealthKit no longer
+        // recognizes the anchor (restore/migration), an unbounded query replays
+        // the entire store - observed in prod as multi-year re-uploads. The
+        // predicate caps the worst case at backfillDays.
+        let predicate = HKQuery.predicateForSamples(
+            withStart: Calendar.current.date(byAdding: .day, value: -SyncConfig.backfillDays, to: Date()),
+            end: nil,
+            options: .strictStartDate
+        )
 
         let (samples, deletedObjects, newAnchor) = try await performAnchoredQuery(
             sampleType: sampleType,
@@ -474,12 +441,11 @@ actor SyncEngine {
     // MARK: - Upload
 
     /// Upload all pending batches in a page sequentially. Returns true if all succeed.
+    /// Only terminal statuses are persisted - re-uploading an in-flight batch
+    /// after a crash is safe (server upsert is idempotent), and skipping the
+    /// transient .uploading write halves outbox file rewrites.
     private func uploadPage(_ page: StagedPage) async -> Bool {
         for batch in page.batches where batch.status != .succeeded {
-            try? await outboxStore.updateBatchStatus(
-                pageId: page.id, batchId: batch.id, status: .uploading
-            )
-
             if await uploadWithRetry(batch.payload) {
                 try? await outboxStore.updateBatchStatus(
                     pageId: page.id, batchId: batch.id, status: .succeeded
@@ -569,29 +535,6 @@ actor SyncEngine {
                 }
             }
             healthStore.execute(query)
-        }
-    }
-
-    // MARK: - Materialized View Refresh
-
-    private var lastRefreshTime: Date = .distantPast
-
-    private func refreshMaterializedView() async {
-        // Debounce: skip if refreshed within last 10 seconds (prevents stampede from parallel type drains)
-        guard Date().timeIntervalSince(lastRefreshTime) > 10 else { return }
-        lastRefreshTime = Date()
-
-        guard let url = URL(string: SyncConfig.serverURL.replacingOccurrences(of: "/sync", with: "/sync/refresh")) else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(SyncConfig.apiSecret)", forHTTPHeaderField: "Authorization")
-        do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
-                print("Materialized view refreshed")
-            }
-        } catch {
-            print("Failed to refresh materialized view: \(error)")
         }
     }
 

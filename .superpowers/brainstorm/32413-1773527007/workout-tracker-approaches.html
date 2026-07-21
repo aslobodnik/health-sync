@@ -1,0 +1,238 @@
+<style>
+  body { background: #09090b; }
+  h2, h3, p, .subtitle, .label { color: #fafafa; }
+
+  .cards { display: flex; flex-direction: column; gap: 24px; max-width: 700px; margin: 0 auto; }
+
+  .card {
+    background: linear-gradient(135deg, rgba(39,39,42,0.4) 0%, rgba(24,24,27,0.6) 100%);
+    border: 1px solid rgba(63,63,70,0.5);
+    border-radius: 8px;
+    padding: 24px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: rgba(16,185,129,0.5); }
+  .card.selected { border-color: #10b981; box-shadow: 0 0 12px rgba(16,185,129,0.2); }
+
+  .card-label {
+    font-family: monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #71717a;
+    margin-bottom: 12px;
+  }
+
+  .card-body h3 { margin: 12px 0 4px; font-size: 16px; }
+  .card-body p { color: #a1a1aa; font-size: 13px; margin: 0; }
+
+  /* ---- Mockup A: Dot Streak ---- */
+  .dot-row { display: flex; gap: 12px; align-items: center; justify-content: center; }
+  .dot-day { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .dot-day .label { font-family: monospace; font-size: 10px; color: #71717a; letter-spacing: 1px; }
+  .dot-day .circle {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2px solid #3f3f46;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s;
+  }
+  .dot-day .circle.filled {
+    background: rgba(16,185,129,0.2);
+    border-color: #10b981;
+    box-shadow: 0 0 8px rgba(16,185,129,0.3);
+  }
+  .dot-day .circle.filled .check { color: #10b981; font-size: 14px; }
+  .dot-day .circle.today {
+    border-color: #52525b;
+    border-style: dashed;
+  }
+  .dot-day .circle.streak {
+    background: rgba(251,191,36,0.15);
+    border-color: #fbbf24;
+    box-shadow: 0 0 8px rgba(251,191,36,0.3);
+  }
+  .dot-day .circle.streak .check { color: #fbbf24; }
+
+  .streak-counter {
+    font-family: monospace;
+    text-align: center;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #a1a1aa;
+  }
+  .streak-counter span { color: #fbbf24; font-weight: bold; }
+
+  /* ---- Mockup B: Ring ---- */
+  .ring-container { display: flex; align-items: center; justify-content: center; gap: 32px; }
+  .ring-wrap { position: relative; width: 120px; height: 120px; }
+  .ring-svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: #27272a; stroke-width: 8; }
+  .ring-fill { fill: none; stroke: #10b981; stroke-width: 8; stroke-linecap: round; stroke-dasharray: 326.7; stroke-dashoffset: 93.3; filter: drop-shadow(0 0 6px rgba(16,185,129,0.4)); }
+  .ring-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center; font-family: monospace;
+  }
+  .ring-center .big { font-size: 28px; color: #10b981; font-weight: bold; text-shadow: 0 0 10px rgba(16,185,129,0.5); }
+  .ring-center .small { font-size: 10px; color: #71717a; letter-spacing: 1px; }
+  .ring-days { display: flex; flex-direction: column; gap: 4px; }
+  .ring-day-row {
+    display: flex; align-items: center; gap: 8px;
+    font-family: monospace; font-size: 12px; color: #71717a;
+  }
+  .ring-day-row .pip { width: 8px; height: 8px; border-radius: 50%; background: #27272a; }
+  .ring-day-row .pip.on { background: #10b981; box-shadow: 0 0 4px rgba(16,185,129,0.5); }
+  .ring-day-row .pip.missed { background: #3f3f46; }
+
+  /* ---- Mockup C: Tiles ---- */
+  .tiles-row { display: flex; gap: 8px; justify-content: center; }
+  .tile {
+    width: 72px; padding: 10px 4px;
+    background: rgba(24,24,27,0.6);
+    border: 1px solid #27272a;
+    border-radius: 6px;
+    text-align: center;
+    font-family: monospace;
+  }
+  .tile .day-label { font-size: 10px; color: #71717a; letter-spacing: 1px; margin-bottom: 6px; }
+  .tile .icon { font-size: 18px; margin-bottom: 4px; height: 24px; display: flex; align-items: center; justify-content: center; }
+  .tile .type-label { font-size: 9px; color: #52525b; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tile.active { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.05); }
+  .tile.active .icon { color: #10b981; }
+  .tile.active .type-label { color: #10b981; }
+  .tile.rest { border-style: dashed; border-color: #27272a; }
+  .tile.rest .icon { color: #3f3f46; }
+  .tile.today { border-color: rgba(34,211,238,0.3); }
+  .tile.today .day-label { color: #22d3ee; }
+</style>
+
+<h2>Workout Consistency Tracker</h2>
+<p class="subtitle">Three visual approaches -- click to pick your favorite</p>
+
+<div class="cards">
+
+  <!-- Option A: Dot Streak -->
+  <div class="card" data-choice="dots" onclick="toggleSelect(this)">
+    <div class="card-label">A -- Dot Streak</div>
+    <div class="card-image" style="padding: 16px 0;">
+      <div class="dot-row">
+        <div class="dot-day">
+          <div class="circle streak"><span class="check">&#10003;</span></div>
+          <span class="label">SAT</span>
+        </div>
+        <div class="dot-day">
+          <div class="circle streak"><span class="check">&#10003;</span></div>
+          <span class="label">SUN</span>
+        </div>
+        <div class="dot-day">
+          <div class="circle filled"><span class="check">&#10003;</span></div>
+          <span class="label">MON</span>
+        </div>
+        <div class="dot-day">
+          <div class="circle filled"><span class="check">&#10003;</span></div>
+          <span class="label">TUN</span>
+        </div>
+        <div class="dot-day">
+          <div class="circle"><span class="check" style="color:#3f3f46">&#215;</span></div>
+          <span class="label">WED</span>
+        </div>
+        <div class="dot-day">
+          <div class="circle filled"><span class="check">&#10003;</span></div>
+          <span class="label">THU</span>
+        </div>
+        <div class="dot-day">
+          <div class="circle today"></div>
+          <span class="label" style="color:#22d3ee">FRI</span>
+        </div>
+      </div>
+      <div class="streak-counter">
+        <span>5</span> of 7 days -- go earn today
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Minimal dots with streak glow</h3>
+      <p>7 circles, one per day. Filled = worked out. Turns golden at 6+ days. Dashed border for today if unfilled (nudge). Most compact option.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Progress Ring -->
+  <div class="card" data-choice="ring" onclick="toggleSelect(this)">
+    <div class="card-label">B -- Progress Ring</div>
+    <div class="card-image" style="padding: 16px 0;">
+      <div class="ring-container">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="52"/>
+            <circle class="ring-fill" cx="60" cy="60" r="52"/>
+          </svg>
+          <div class="ring-center">
+            <div class="big">5/7</div>
+            <div class="small">DAYS</div>
+          </div>
+        </div>
+        <div class="ring-days">
+          <div class="ring-day-row"><span class="pip on"></span> Sat - Swim</div>
+          <div class="ring-day-row"><span class="pip on"></span> Sun - Run</div>
+          <div class="ring-day-row"><span class="pip on"></span> Mon - Swim</div>
+          <div class="ring-day-row"><span class="pip on"></span> Tue - Cycle</div>
+          <div class="ring-day-row"><span class="pip missed"></span> Wed - rest</div>
+          <div class="ring-day-row"><span class="pip on"></span> Thu - Run</div>
+          <div class="ring-day-row"><span class="pip missed"></span> Fri - today</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Ring progress with day breakdown</h3>
+      <p>Circular progress fills toward 7/7. Lists each day with workout type. More dramatic visual payoff when the ring completes. Medium size.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Day Tiles -->
+  <div class="card" data-choice="tiles" onclick="toggleSelect(this)">
+    <div class="card-label">C -- Day Tiles</div>
+    <div class="card-image" style="padding: 16px 0;">
+      <div class="tiles-row">
+        <div class="tile active">
+          <div class="day-label">SAT</div>
+          <div class="icon">&#127946;</div>
+          <div class="type-label">swim</div>
+        </div>
+        <div class="tile active">
+          <div class="day-label">SUN</div>
+          <div class="icon">&#127939;</div>
+          <div class="type-label">run</div>
+        </div>
+        <div class="tile active">
+          <div class="day-label">MON</div>
+          <div class="icon">&#127946;</div>
+          <div class="type-label">swim</div>
+        </div>
+        <div class="tile active">
+          <div class="day-label">TUE</div>
+          <div class="icon">&#128692;</div>
+          <div class="type-label">cycle</div>
+        </div>
+        <div class="tile rest">
+          <div class="day-label">WED</div>
+          <div class="icon">&#8212;</div>
+          <div class="type-label">rest</div>
+        </div>
+        <div class="tile active">
+          <div class="day-label">THU</div>
+          <div class="icon">&#127939;</div>
+          <div class="type-label">run</div>
+        </div>
+        <div class="tile today">
+          <div class="day-label">FRI</div>
+          <div class="icon" style="color:#22d3ee">?</div>
+          <div class="type-label" style="color:#22d3ee">today</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Tile grid with workout types</h3>
+      <p>Shows what you did each day, not just whether you did it. Emoji icons per workout type. Takes more horizontal space but richer info. Cyan highlight for today.</p>
+    </div>
+  </div>
+
+</div>

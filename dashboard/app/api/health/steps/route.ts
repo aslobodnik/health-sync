@@ -1,19 +1,11 @@
 import { NextResponse } from "next/server";
-import { getDailySteps, getDailyEnergy, getTodaySteps } from "@/lib/queries";
+import { STEP_COUNT, getLatestDailyTotal } from "@/lib/queries";
 
+// Consumed only by opengraph-image.tsx (edge runtime cannot use pg directly)
 export async function GET() {
   try {
-    const [daily, energy, today] = await Promise.all([
-      getDailySteps(365),
-      getDailyEnergy(30),
-      getTodaySteps(),
-    ]);
-
-    return NextResponse.json({
-      daily,
-      energy,
-      today,
-    });
+    const today = await getLatestDailyTotal(STEP_COUNT);
+    return NextResponse.json({ today });
   } catch (error) {
     console.error("Error fetching steps:", error);
     return NextResponse.json(

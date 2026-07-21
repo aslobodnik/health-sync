@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
-    @EnvironmentObject var syncManager: SyncManager
     @State private var isSyncingManual = false
     @State private var isHealing = false
 
@@ -153,7 +152,7 @@ struct ContentView: View {
                                     .padding(.trailing, 4)
                                 Text("Healing...")
                             } else {
-                                Label("Heal (14-day deep sync)", systemImage: "bandage")
+                                Label("Heal (\(SyncConfig.healingWindowDays)-day deep sync)", systemImage: "bandage")
                             }
                         }
                     }
@@ -270,5 +269,4 @@ struct TypeStatusRow: View {
 #Preview {
     ContentView()
         .environmentObject(HealthKitManager())
-        .environmentObject(SyncManager())
 }

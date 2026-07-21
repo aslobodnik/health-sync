@@ -1,13 +1,8 @@
-interface SwimWorkout {
-  date: string;
-  yards: number;
-  duration_mins: number;
-  pace_per_100: number;
-  avg_hr: number | null;
-}
+import type { SwimWorkout, SwimmingYearly } from "@/lib/queries";
+import { formatShortDate } from "@/lib/dates";
 
 interface SwimmingCardProps {
-  years: { year: number; yards: number }[];
+  years: SwimmingYearly[];
   recentSwims?: SwimWorkout[];
 }
 
@@ -106,10 +101,7 @@ export default function SwimmingCard({ years, recentSwims }: SwimmingCardProps) 
             {recentSwims.slice(0, 3).map((swim, i) => (
               <div key={i} className="flex items-center text-[11px]">
                 <span className="text-zinc-500 w-14 shrink-0">
-                  {new Date(swim.date).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {formatShortDate(swim.date)}
                 </span>
                 <span className="text-zinc-300 font-mono w-12 text-right">
                   {formatYards(swim.yards)}

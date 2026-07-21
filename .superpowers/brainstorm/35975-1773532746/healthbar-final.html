@@ -1,0 +1,263 @@
+<style>
+  body { background: #09090b; padding: 40px 20px; }
+  h2, p, .subtitle { color: #fafafa; font-family: 'SF Mono', 'Fira Code', monospace; }
+  .wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+
+  /* Card-terminal */
+  .ct {
+    position: relative;
+    background: linear-gradient(135deg, rgba(39,39,42,0.4) 0%, rgba(24,24,27,0.6) 100%);
+    border: 1px solid rgba(63,63,70,0.5);
+    border-radius: 8px;
+    padding: 24px 24px 20px;
+  }
+  .ct::before, .ct::after {
+    content: ''; position: absolute; width: 12px; height: 12px;
+    border-color: rgba(16,185,129,0.3); border-style: solid;
+  }
+  .ct::before { top: 6px; left: 6px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+  .ct::after { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
+  /* Streak variant */
+  .ct.streak { border-color: rgba(251,191,36,0.25); }
+  .ct.streak::before, .ct.streak::after {
+    border-color: rgba(251,191,36,0.5);
+    filter: drop-shadow(0 0 4px rgba(251,191,36,0.5));
+  }
+
+  /* Header */
+  .ct-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .ct-title {
+    font-family: monospace; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 2px; color: #71717a;
+  }
+  .ct-date { font-family: monospace; font-size: 10px; color: #3f3f46; letter-spacing: 1px; }
+
+  /* Streak badge */
+  .streak-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.25);
+    border-radius: 4px; padding: 2px 6px 2px 4px;
+    font-family: monospace; font-size: 11px; color: #fbbf24;
+    margin-left: 8px;
+  }
+  .streak-badge .flame { font-size: 12px; animation: flicker 1.5s ease-in-out infinite; }
+  @keyframes flicker { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.85); } }
+
+  /* Segments */
+  .seg-group { display: flex; gap: 6px; }
+  .seg-col {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    flex: 1; position: relative;
+  }
+
+  /* Emoji area */
+  .emoji-slot {
+    height: 28px; display: flex; align-items: center; justify-content: center; gap: 2px;
+  }
+  .emoji-slot .em { font-size: 16px; }
+  .emoji-slot .em.small { font-size: 12px; }
+  .emoji-slot.off { opacity: 0.12; filter: grayscale(1); }
+  .emoji-slot.off .em { font-size: 14px; }
+
+  /* Segment bar */
+  .seg {
+    width: 100%; height: 24px; border-radius: 4px;
+    background: #1a1a1e; border: 1px solid #27272a;
+    display: flex; align-items: center; justify-content: center;
+    font-family: monospace; font-size: 9px; color: #3f3f46; letter-spacing: 1px;
+  }
+  .seg.on {
+    background: linear-gradient(180deg, rgba(16,185,129,0.25) 0%, rgba(16,185,129,0.08) 100%);
+    border-color: rgba(16,185,129,0.4); color: #71717a;
+  }
+  .seg.on.gold {
+    background: linear-gradient(180deg, rgba(251,191,36,0.25) 0%, rgba(251,191,36,0.08) 100%);
+    border-color: rgba(251,191,36,0.4); color: #a1a1aa;
+  }
+  .seg.today { border-color: rgba(34,211,238,0.4); color: #22d3ee; }
+
+  /* Tooltip */
+  .tooltip {
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    background: rgba(15,15,18,0.95); border: 1px solid rgba(16,185,129,0.3);
+    border-radius: 6px; padding: 10px 12px;
+    font-family: monospace; font-size: 10px; color: #a1a1aa;
+    white-space: nowrap; line-height: 1.6;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    transform: translateX(-50%) translateY(4px);
+    z-index: 10;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .tooltip::after {
+    content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: rgba(16,185,129,0.3);
+  }
+  .tooltip.gold { border-color: rgba(251,191,36,0.3); }
+  .tooltip.gold::after { border-top-color: rgba(251,191,36,0.3); }
+  .seg-col:hover .tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .tooltip .tt-type { color: #10b981; font-weight: bold; margin-bottom: 2px; }
+  .tooltip.gold .tt-type { color: #fbbf24; }
+  .tooltip .tt-stat { color: #52525b; }
+  .tooltip .tt-val { color: #fafafa; }
+  .tooltip .tt-div { border-top: 1px solid #27272a; margin: 4px 0; }
+
+  .section-label {
+    font-family: monospace; font-size: 10px; color: #52525b; letter-spacing: 2px;
+    text-transform: uppercase; margin-bottom: 8px; text-align: center;
+  }
+</style>
+
+<h2>Final Design</h2>
+<p class="subtitle">Hover the segments. Normal vs streak side by side.</p>
+
+<div class="wrap">
+
+  <!-- Normal state -->
+  <div>
+    <div class="section-label">Normal -- 5 of 7 days</div>
+    <div class="ct">
+      <div class="ct-header">
+        <span class="ct-title">workout streak</span>
+        <span class="ct-date">mar 8 – 14</span>
+      </div>
+      <div class="seg-group">
+        <div class="seg-col">
+          <div class="tooltip">
+            <div class="tt-type">Swimming</div>
+            <div><span class="tt-stat">duration </span><span class="tt-val">42 min</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">380 kcal</span></div>
+            <div><span class="tt-stat">avg hr </span><span class="tt-val">134 bpm</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🏊</span></div>
+          <div class="seg on">SAT</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip">
+            <div class="tt-type">Running</div>
+            <div><span class="tt-stat">distance </span><span class="tt-val">3.2 mi</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">310 kcal</span></div>
+            <div><span class="tt-stat">avg hr </span><span class="tt-val">142 bpm</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🏃</span></div>
+          <div class="seg on">SUN</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip">
+            <div class="tt-type">Swimming + Running</div>
+            <div class="tt-div"></div>
+            <div><span class="tt-stat">swim </span><span class="tt-val">38 min / 350 kcal</span></div>
+            <div><span class="tt-stat">run </span><span class="tt-val">25 min / 240 kcal</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em small">🏊</span><span class="em small">🏃</span></div>
+          <div class="seg on">MON</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip">
+            <div class="tt-type">Cycling</div>
+            <div><span class="tt-stat">distance </span><span class="tt-val">12.4 mi</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">420 kcal</span></div>
+            <div><span class="tt-stat">avg hr </span><span class="tt-val">128 bpm</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🚴</span></div>
+          <div class="seg on">TUE</div>
+        </div>
+        <div class="seg-col">
+          <div class="emoji-slot off"><span class="em">-</span></div>
+          <div class="seg">WED</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip">
+            <div class="tt-type">Running</div>
+            <div><span class="tt-stat">distance </span><span class="tt-val">4.1 mi</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">390 kcal</span></div>
+            <div><span class="tt-stat">avg hr </span><span class="tt-val">145 bpm</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🏃</span></div>
+          <div class="seg on">THU</div>
+        </div>
+        <div class="seg-col">
+          <div class="emoji-slot off"><span class="em">?</span></div>
+          <div class="seg today">FRI</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Streak state: 6/7 -->
+  <div>
+    <div class="section-label">Streak -- 6 of 7 days</div>
+    <div class="ct streak">
+      <div class="ct-header">
+        <span class="ct-title">workout streak <span class="streak-badge"><span class="flame">🔥</span> 6</span></span>
+        <span class="ct-date">mar 8 – 14</span>
+      </div>
+      <div class="seg-group">
+        <div class="seg-col">
+          <div class="tooltip gold">
+            <div class="tt-type">Swimming</div>
+            <div><span class="tt-stat">duration </span><span class="tt-val">42 min</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">380 kcal</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🏊</span></div>
+          <div class="seg on gold">SAT</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip gold">
+            <div class="tt-type">Running</div>
+            <div><span class="tt-stat">distance </span><span class="tt-val">3.2 mi</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">310 kcal</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🏃</span></div>
+          <div class="seg on gold">SUN</div>
+        </div>
+        <div class="seg-col">
+          <div class="emoji-slot off"><span class="em">-</span></div>
+          <div class="seg">MON</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip gold">
+            <div class="tt-type">Cycling</div>
+            <div><span class="tt-stat">distance </span><span class="tt-val">12.4 mi</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">420 kcal</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🚴</span></div>
+          <div class="seg on gold">TUE</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip gold">
+            <div class="tt-type">Swimming</div>
+            <div><span class="tt-stat">duration </span><span class="tt-val">40 min</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">360 kcal</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🏊</span></div>
+          <div class="seg on gold">WED</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip gold">
+            <div class="tt-type">Running + Strength</div>
+            <div class="tt-div"></div>
+            <div><span class="tt-stat">run </span><span class="tt-val">30 min / 290 kcal</span></div>
+            <div><span class="tt-stat">strength </span><span class="tt-val">45 min / 200 kcal</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em small">🏃</span><span class="em small">🏋️</span></div>
+          <div class="seg on gold">THU</div>
+        </div>
+        <div class="seg-col">
+          <div class="tooltip gold">
+            <div class="tt-type">Swimming</div>
+            <div><span class="tt-stat">duration </span><span class="tt-val">35 min</span></div>
+            <div><span class="tt-stat">calories </span><span class="tt-val">320 kcal</span></div>
+          </div>
+          <div class="emoji-slot"><span class="em">🏊</span></div>
+          <div class="seg on gold">FRI</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

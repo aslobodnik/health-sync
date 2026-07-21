@@ -1,155 +1,59 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import WorkoutList from "@/components/WorkoutList";
 import HeartRateCard from "@/components/HeartRateCard";
 import SwimmingCard from "@/components/SwimmingCard";
 import WeeklyBarChart from "@/components/WeeklyBarChart";
 import YearComparisonA from "@/components/YearComparisonA";
 import WorkoutStreakCard from "@/components/WorkoutStreakCard";
+import {
+  ACTIVE_ENERGY,
+  HRV,
+  RESTING_HR,
+  STEP_COUNT,
+  getDailyAvg,
+  getDailyTotals,
+  getLatestVO2Max,
+  getPeriodComparisons,
+  getRecentSwims,
+  getRecentWorkouts,
+  getSleepingHR,
+  getSwimmingByYear,
+} from "@/lib/queries";
+import { getWorkoutStreakData } from "@/lib/workoutStreak";
 
-interface StepsData {
-  daily: { date: string; steps: number }[];
-  energy: { date: string; calories: number }[];
-  today: number;
-}
+// Server-rendered per request: 11 parallel queries, all view-backed or
+// index-only (~100ms total). Never prerendered at build time - the build
+// machine cannot always reach the NUC.
+export const dynamic = "force-dynamic";
 
-interface WorkoutsData {
-  workouts: {
-    id: string;
-    workout_type: string;
-    start_time: string;
-    duration_seconds: number;
-    total_distance: number | null;
-    avg_hr: number | null;
-  }[];
-}
+export default async function Home() {
+  const [
+    dailySteps,
+    dailyEnergy,
+    workouts,
+    periods,
+    hrv,
+    rhr,
+    sleepHr,
+    vo2max,
+    swimYears,
+    recentSwims,
+    workoutStreak,
+  ] = await Promise.all([
+    getDailyTotals(STEP_COUNT, 8),
+    getDailyTotals(ACTIVE_ENERGY, 8),
+    getRecentWorkouts(10),
+    getPeriodComparisons(),
+    getDailyAvg(HRV, 30),
+    getDailyAvg(RESTING_HR, 30),
+    getSleepingHR(30),
+    getLatestVO2Max(),
+    getSwimmingByYear(),
+    getRecentSwims(5),
+    getWorkoutStreakData(),
+  ]);
 
-interface DailyHR {
-  date: string;
-  hrv?: number;
-  rhr?: number;
-}
-
-interface VO2MaxMonth {
-  month: string;
-  value: number;
-}
-
-interface VO2MaxData {
-  months: VO2MaxMonth[];
-}
-
-interface PeriodData {
-  steps: { metric: string; mtd: number; mtd_prior: number; ytd: number; ytd_prior: number } | null;
-  energy: { metric: string; mtd: number; mtd_prior: number; ytd: number; ytd_prior: number } | null;
-  hrv: DailyHR[];
-  rhr: DailyHR[];
-  sleepHr: { date: string; sleeping_hr: number }[];
-  vo2max: VO2MaxData | null;
-}
-
-interface SwimWorkout {
-  date: string;
-  yards: number;
-  duration_mins: number;
-  pace_per_100: number;
-  avg_hr: number | null;
-}
-
-interface SwimmingData {
-  yearly: { year: number; yards: number }[];
-  recentSwims: SwimWorkout[];
-}
-
-interface CumulativeData {
-  day: number;
-  label: string;
-  thisYear: number;
-  lastYear: number;
-}
-
-interface ComparisonData {
-  stepsCumulative: CumulativeData[];
-  energyCumulative: CumulativeData[];
-}
-
-interface WorkoutStreakData {
-  days: {
-    date: string;
-    dayLabel: string;
-    workouts: {
-      type: string;
-      durationMinutes: number;
-      calories: number | null;
-      avgHR: number | null;
-      distance: number | null;
-    }[];
-  }[];
-  activeDayCount: number;
-  dateRange: string;
-}
-
-export default function Home() {
-  const [stepsData, setStepsData] = useState<StepsData | null>(null);
-  const [workoutsData, setWorkoutsData] = useState<WorkoutsData | null>(null);
-  const [periodData, setPeriodData] = useState<PeriodData | null>(null);
-  const [swimmingData, setSwimmingData] = useState<SwimmingData | null>(null);
-  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
-  const [workoutStreak, setWorkoutStreak] = useState<WorkoutStreakData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [steps, workouts, periods, swimming, comparison, streak] = await Promise.all([
-          fetch("/api/health/steps").then((r) => r.json()),
-          fetch("/api/health/workouts").then((r) => r.json()),
-          fetch("/api/health/periods").then((r) => r.json()),
-          fetch("/api/health/swimming").then((r) => r.json()),
-          fetch("/api/health/comparison").then((r) => r.json()),
-          fetch("/api/health/workout-streak").then((r) => r.json()),
-        ]);
-
-        setStepsData(steps);
-        setWorkoutsData(workouts);
-        setPeriodData(periods);
-        setSwimmingData(swimming);
-        setComparisonData(comparison);
-        setWorkoutStreak(streak);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, []);
-
-  // Convert HR data for trend components
-  const hrvTrendData = periodData?.hrv?.map((d) => ({
-    date: d.date,
-    value: d.hrv ?? 0,
-  })) ?? [];
-
-  const rhrTrendData = periodData?.rhr?.map((d) => ({
-    date: d.date,
-    value: d.rhr ?? 0,
-  })) ?? [];
-
-  const sleepHrData = periodData?.sleepHr?.map((d) => ({
-    date: d.date,
-    value: d.sleeping_hr ?? 0,
-  })) ?? [];
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-        <div className="text-zinc-600 text-sm uppercase tracking-widest">loading...</div>
-      </div>
-    );
-  }
+  const stepsPeriod = periods.find((p) => p.metric === "steps") ?? null;
+  const energyPeriod = periods.find((p) => p.metric === "active_energy") ?? null;
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col relative overflow-hidden">
@@ -196,24 +100,22 @@ export default function Home() {
       {/* Main content */}
       <main className="relative z-10 flex-1 px-4 pb-8 max-w-5xl mx-auto w-full">
         {/* Workout streak */}
-        {workoutStreak && (
-          <div className="mb-8 max-w-md mx-auto">
-            <div className="reveal reveal-delay-1">
-              <WorkoutStreakCard
-                days={workoutStreak.days}
-                activeDayCount={workoutStreak.activeDayCount}
-                dateRange={workoutStreak.dateRange}
-              />
-            </div>
+        <div className="mb-8 max-w-md mx-auto">
+          <div className="reveal reveal-delay-1">
+            <WorkoutStreakCard
+              days={workoutStreak.days}
+              activeDayCount={workoutStreak.activeDayCount}
+              dateRange={workoutStreak.dateRange}
+            />
           </div>
-        )}
+        </div>
 
         {/* Weekly bar charts */}
         <div className="flex flex-col gap-4 mb-8 max-w-md mx-auto">
           <div className="reveal reveal-delay-2">
             <WeeklyBarChart
               title="steps"
-              data={stepsData?.daily.map((d) => ({ date: d.date, value: d.steps })) ?? []}
+              data={dailySteps.map((d) => ({ date: d.date, value: d.total }))}
               unit="steps"
               goal={13000}
             />
@@ -221,7 +123,7 @@ export default function Home() {
           <div className="reveal reveal-delay-3">
             <WeeklyBarChart
               title="active calories"
-              data={stepsData?.energy.map((d) => ({ date: d.date, value: d.calories })) ?? []}
+              data={dailyEnergy.map((d) => ({ date: d.date, value: d.total }))}
               unit="kcal"
               goal={1000}
             />
@@ -229,17 +131,12 @@ export default function Home() {
         </div>
 
         {/* Year comparison */}
-        {comparisonData && (
-          <div className="mb-8">
-            <YearComparisonA
-              stepsCumulative={comparisonData.stepsCumulative}
-              energyCumulative={comparisonData.energyCumulative}
-            />
-          </div>
-        )}
+        <div className="mb-8">
+          <YearComparisonA steps={stepsPeriod} energy={energyPeriod} />
+        </div>
 
         {/* Heart rate and swimming */}
-        {(hrvTrendData.length > 0 || rhrTrendData.length > 0 || swimmingData) && (
+        {(hrv.length > 0 || rhr.length > 0 || swimYears.length > 0) && (
           <div className="mb-8">
             <div className="flex items-center justify-center gap-3 mb-4">
               <div className="h-px w-12 bg-gradient-to-r from-transparent to-zinc-700" />
@@ -249,23 +146,16 @@ export default function Home() {
               <div className="h-px w-12 bg-gradient-to-l from-transparent to-zinc-700" />
             </div>
             <div className="flex justify-center gap-3 sm:gap-4 flex-wrap">
-              {(rhrTrendData.length > 0 || hrvTrendData.length > 0 || sleepHrData.length > 0) && (
-                <HeartRateCard rhr={rhrTrendData} hrv={hrvTrendData} sleepHr={sleepHrData} vo2max={periodData?.vo2max} />
+              {(rhr.length > 0 || hrv.length > 0 || sleepHr.length > 0) && (
+                <HeartRateCard rhr={rhr} hrv={hrv} sleepHr={sleepHr} vo2max={vo2max} />
               )}
-              {swimmingData && (
-                <SwimmingCard
-                  years={swimmingData.yearly}
-                  recentSwims={swimmingData.recentSwims}
-                />
-              )}
+              <SwimmingCard years={swimYears} recentSwims={recentSwims} />
             </div>
           </div>
         )}
 
         {/* Recent workouts */}
-        {workoutsData?.workouts && workoutsData.workouts.length > 0 && (
-          <WorkoutList workouts={workoutsData.workouts} />
-        )}
+        {workouts.length > 0 && <WorkoutList workouts={workouts} />}
       </main>
     </div>
   );

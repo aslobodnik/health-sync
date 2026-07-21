@@ -127,9 +127,8 @@ struct TypeSyncStatus: Identifiable {
 
 struct SyncConfig {
     static let serverURL = "https://fit.justslobo.com/api/sync"
-    static let batchSize = 1000
-    static let backfillDays = 30 // Initial backfill window
-    static let healingWindowDays = 14 // Ongoing healing pass window
+    static let backfillDays = 30 // Anchored query window (also caps stale-anchor replays)
+    static let healingWindowDays = 3 // Rolling healing pass window
     static let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
 
     static var apiSecret: String {

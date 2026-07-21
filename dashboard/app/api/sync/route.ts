@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import pool from "@/lib/db";
-
-// Simple bearer token auth - set in environment
-const API_SECRET = process.env.SYNC_API_SECRET || "CHANGE_ME";
-
-let lastRefreshTime = 0;
-const REFRESH_DEBOUNCE_MS = 30_000;
+import { requireAuth } from "@/lib/auth";
 
 interface HealthRecordPayload {
   recordType: string;
@@ -54,12 +49,62 @@ function generateWorkoutHash(workout: WorkoutPayload): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
+// Single set-based upsert per batch (one round trip instead of one per row).
+// The DO UPDATE only fires when it would backfill a sample UUID, so healing
+// re-uploads of identical rows are no-ops instead of dead-tuple churn.
+const INSERT_RECORDS = `
+  INSERT INTO health_raw (
+    record_type, source_name, source_bundle_id, unit,
+    value_numeric, value_text, start_time, end_time,
+    metadata, record_hash, sample_uuid
+  )
+  SELECT * FROM UNNEST(
+    $1::text[], $2::text[], $3::text[], $4::text[],
+    $5::float8[], $6::text[], $7::timestamptz[], $8::timestamptz[],
+    $9::jsonb[], $10::text[], $11::text[]
+  )
+  ON CONFLICT (record_hash) DO UPDATE SET
+    sample_uuid = EXCLUDED.sample_uuid,
+    value_numeric = EXCLUDED.value_numeric,
+    value_text = EXCLUDED.value_text,
+    metadata = EXCLUDED.metadata
+  WHERE EXCLUDED.sample_uuid IS NOT NULL
+    AND health_raw.sample_uuid IS DISTINCT FROM EXCLUDED.sample_uuid
+`;
+
+const INSERT_WORKOUTS = `
+  INSERT INTO workouts (
+    workout_type, source_name, source_bundle_id,
+    start_time, end_time, duration_seconds,
+    total_distance, total_distance_unit,
+    total_energy_burned, total_energy_unit,
+    avg_heart_rate, min_heart_rate, max_heart_rate,
+    metadata, workout_hash, sample_uuid
+  )
+  SELECT * FROM UNNEST(
+    $1::text[], $2::text[], $3::text[],
+    $4::timestamptz[], $5::timestamptz[], $6::float8[],
+    $7::float8[], $8::text[],
+    $9::float8[], $10::text[],
+    $11::float8[], $12::float8[], $13::float8[],
+    $14::jsonb[], $15::text[], $16::text[]
+  )
+  ON CONFLICT (workout_hash) DO UPDATE SET
+    sample_uuid = EXCLUDED.sample_uuid,
+    duration_seconds = EXCLUDED.duration_seconds,
+    total_distance = EXCLUDED.total_distance,
+    total_energy_burned = EXCLUDED.total_energy_burned,
+    avg_heart_rate = EXCLUDED.avg_heart_rate,
+    min_heart_rate = EXCLUDED.min_heart_rate,
+    max_heart_rate = EXCLUDED.max_heart_rate,
+    metadata = EXCLUDED.metadata
+  WHERE EXCLUDED.sample_uuid IS NOT NULL
+    AND workouts.sample_uuid IS DISTINCT FROM EXCLUDED.sample_uuid
+`;
+
 export async function POST(request: NextRequest) {
-  // Auth check
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== API_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const unauthorized = requireAuth(request);
+  if (unauthorized) return unauthorized;
 
   try {
     const batch: SyncBatch = await request.json();
@@ -72,162 +117,59 @@ export async function POST(request: NextRequest) {
     try {
       await client.query("BEGIN");
 
-      // Insert health records
       if (batch.records && batch.records.length > 0) {
-        for (const record of batch.records) {
-          const hash = generateRecordHash(record);
-
-          const result = record.sampleUUID
-            ? await client.query(
-                `INSERT INTO health_raw (
-                  record_type, source_name, source_bundle_id, unit,
-                  value_numeric, value_text, start_time, end_time,
-                  metadata, record_hash, sample_uuid
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                ON CONFLICT (record_hash) DO UPDATE SET
-                  sample_uuid = EXCLUDED.sample_uuid,
-                  value_numeric = EXCLUDED.value_numeric,
-                  value_text = EXCLUDED.value_text,
-                  metadata = EXCLUDED.metadata
-                RETURNING id`,
-                [
-                  record.recordType,
-                  record.sourceName,
-                  record.sourceBundle,
-                  record.unit,
-                  record.value,
-                  record.valueText,
-                  record.startTime,
-                  record.endTime,
-                  record.metadata ? JSON.stringify(record.metadata) : null,
-                  hash,
-                  record.sampleUUID,
-                ]
-              )
-            : await client.query(
-                `INSERT INTO health_raw (
-                  record_type, source_name, source_bundle_id, unit,
-                  value_numeric, value_text, start_time, end_time,
-                  metadata, record_hash
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                ON CONFLICT (record_hash) DO NOTHING
-                RETURNING id`,
-                [
-                  record.recordType,
-                  record.sourceName,
-                  record.sourceBundle,
-                  record.unit,
-                  record.value,
-                  record.valueText,
-                  record.startTime,
-                  record.endTime,
-                  record.metadata ? JSON.stringify(record.metadata) : null,
-                  hash,
-                ]
-              );
-
-          if (result.rowCount && result.rowCount > 0) {
-            insertedRecords++;
-          } else {
-            skippedDuplicates++;
-          }
-        }
+        const r = batch.records;
+        const result = await client.query(INSERT_RECORDS, [
+          r.map((x) => x.recordType),
+          r.map((x) => x.sourceName),
+          r.map((x) => x.sourceBundle ?? null),
+          r.map((x) => x.unit ?? null),
+          r.map((x) => x.value ?? null),
+          r.map((x) => x.valueText ?? null),
+          r.map((x) => x.startTime),
+          r.map((x) => x.endTime),
+          r.map((x) => (x.metadata ? JSON.stringify(x.metadata) : null)),
+          r.map((x) => generateRecordHash(x)),
+          r.map((x) => x.sampleUUID ?? null),
+        ]);
+        insertedRecords = result.rowCount ?? 0;
+        skippedDuplicates += r.length - insertedRecords;
       }
 
-      // Insert workouts
       if (batch.workouts && batch.workouts.length > 0) {
-        for (const workout of batch.workouts) {
-          const hash = generateWorkoutHash(workout);
-
-          const result = workout.sampleUUID
-            ? await client.query(
-                `INSERT INTO workouts (
-                  workout_type, source_name, source_bundle_id,
-                  start_time, end_time, duration_seconds,
-                  total_distance, total_distance_unit,
-                  total_energy_burned, total_energy_unit,
-                  avg_heart_rate, min_heart_rate, max_heart_rate,
-                  metadata, workout_hash, sample_uuid
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-                ON CONFLICT (workout_hash) DO UPDATE SET
-                  sample_uuid = EXCLUDED.sample_uuid,
-                  duration_seconds = EXCLUDED.duration_seconds,
-                  total_distance = EXCLUDED.total_distance,
-                  total_energy_burned = EXCLUDED.total_energy_burned,
-                  avg_heart_rate = EXCLUDED.avg_heart_rate,
-                  min_heart_rate = EXCLUDED.min_heart_rate,
-                  max_heart_rate = EXCLUDED.max_heart_rate,
-                  metadata = EXCLUDED.metadata
-                RETURNING id`,
-                [
-                  workout.workoutType,
-                  workout.sourceName,
-                  workout.sourceBundle,
-                  workout.startTime,
-                  workout.endTime,
-                  workout.durationSeconds,
-                  workout.totalDistance,
-                  workout.totalDistance ? "mi" : null,
-                  workout.totalEnergyBurned,
-                  workout.totalEnergyBurned ? "kcal" : null,
-                  workout.statistics?.heartRateAvg,
-                  workout.statistics?.heartRateMin,
-                  workout.statistics?.heartRateMax,
-                  workout.metadata ? JSON.stringify(workout.metadata) : null,
-                  hash,
-                  workout.sampleUUID,
-                ]
-              )
-            : await client.query(
-                `INSERT INTO workouts (
-                  workout_type, source_name, source_bundle_id,
-                  start_time, end_time, duration_seconds,
-                  total_distance, total_distance_unit,
-                  total_energy_burned, total_energy_unit,
-                  avg_heart_rate, min_heart_rate, max_heart_rate,
-                  metadata, workout_hash
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                ON CONFLICT (workout_hash) DO NOTHING
-                RETURNING id`,
-                [
-                  workout.workoutType,
-                  workout.sourceName,
-                  workout.sourceBundle,
-                  workout.startTime,
-                  workout.endTime,
-                  workout.durationSeconds,
-                  workout.totalDistance,
-                  workout.totalDistance ? "mi" : null,
-                  workout.totalEnergyBurned,
-                  workout.totalEnergyBurned ? "kcal" : null,
-                  workout.statistics?.heartRateAvg,
-                  workout.statistics?.heartRateMin,
-                  workout.statistics?.heartRateMax,
-                  workout.metadata ? JSON.stringify(workout.metadata) : null,
-                  hash,
-                ]
-              );
-
-          if (result.rowCount && result.rowCount > 0) {
-            insertedWorkouts++;
-          } else {
-            skippedDuplicates++;
-          }
-        }
+        const w = batch.workouts;
+        const result = await client.query(INSERT_WORKOUTS, [
+          w.map((x) => x.workoutType),
+          w.map((x) => x.sourceName),
+          w.map((x) => x.sourceBundle ?? null),
+          w.map((x) => x.startTime),
+          w.map((x) => x.endTime),
+          w.map((x) => x.durationSeconds),
+          w.map((x) => x.totalDistance ?? null),
+          w.map((x) => (x.totalDistance ? "mi" : null)),
+          w.map((x) => x.totalEnergyBurned ?? null),
+          w.map((x) => (x.totalEnergyBurned ? "kcal" : null)),
+          w.map((x) => x.statistics?.heartRateAvg ?? null),
+          w.map((x) => x.statistics?.heartRateMin ?? null),
+          w.map((x) => x.statistics?.heartRateMax ?? null),
+          w.map((x) => (x.metadata ? JSON.stringify(x.metadata) : null)),
+          w.map((x) => generateWorkoutHash(x)),
+          w.map((x) => x.sampleUUID ?? null),
+        ]);
+        insertedWorkouts = result.rowCount ?? 0;
+        skippedDuplicates += w.length - insertedWorkouts;
       }
 
       // Delete records by sample UUID
       if (batch.deletedUUIDs && batch.deletedUUIDs.length > 0) {
-        for (const uuid of batch.deletedUUIDs) {
-          await client.query(
-            "DELETE FROM health_raw WHERE sample_uuid = $1",
-            [uuid]
-          );
-          await client.query(
-            "DELETE FROM workouts WHERE sample_uuid = $1",
-            [uuid]
-          );
-        }
+        await client.query(
+          "DELETE FROM health_raw WHERE sample_uuid = ANY($1)",
+          [batch.deletedUUIDs]
+        );
+        await client.query(
+          "DELETE FROM workouts WHERE sample_uuid = ANY($1)",
+          [batch.deletedUUIDs]
+        );
       }
 
       await client.query("COMMIT");
@@ -240,17 +182,6 @@ export async function POST(request: NextRequest) {
       throw error;
     } finally {
       client.release();
-    }
-
-    // Refresh materialized view (debounced, outside transaction)
-    if (insertedRecords > 0 || insertedWorkouts > 0) {
-      const now = Date.now();
-      if (now - lastRefreshTime > REFRESH_DEBOUNCE_MS) {
-        lastRefreshTime = now;
-        pool.query("REFRESH MATERIALIZED VIEW CONCURRENTLY daily_metrics")
-          .then(() => console.log("Materialized view refreshed"))
-          .catch((err: Error) => console.error("Refresh failed:", err.message));
-      }
     }
 
     return NextResponse.json({
@@ -268,9 +199,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Health check endpoint
-export async function GET() {
-  return NextResponse.json({ status: "ok", endpoint: "sync" });
 }

@@ -1,0 +1,116 @@
+<style>
+  body { background: #09090b; padding: 40px 20px; }
+  h2, p, .subtitle { color: #fafafa; font-family: 'SF Mono', 'Fira Code', monospace; }
+  .wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px; }
+
+  .ct {
+    position: relative;
+    background: linear-gradient(135deg, rgba(39,39,42,0.4) 0%, rgba(24,24,27,0.6) 100%);
+    border: 1px solid rgba(63,63,70,0.5);
+    border-radius: 8px;
+    padding: 24px 24px 20px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .ct:hover { border-color: rgba(16,185,129,0.5); }
+  .ct.selected { border-color: #10b981; box-shadow: 0 0 12px rgba(16,185,129,0.2); }
+  .ct::before, .ct::after {
+    content: ''; position: absolute; width: 12px; height: 12px;
+    border-color: rgba(16,185,129,0.3); border-style: solid;
+  }
+  .ct::before { top: 6px; left: 6px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+  .ct::after { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
+  .ct-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  .ct-title { font-family: monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #71717a; }
+  .ct-date { font-family: monospace; font-size: 10px; color: #3f3f46; letter-spacing: 1px; }
+
+  .seg-group { display: flex; gap: 6px; }
+  .seg-col { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
+  .seg {
+    width: 100%; height: 24px; border-radius: 4px;
+    background: #1a1a1e; border: 1px solid #27272a;
+    display: flex; align-items: center; justify-content: center;
+    font-family: monospace; font-size: 9px; color: #3f3f46; letter-spacing: 1px;
+  }
+  .seg.on {
+    background: linear-gradient(180deg, rgba(16,185,129,0.25) 0%, rgba(16,185,129,0.08) 100%);
+    border-color: rgba(16,185,129,0.4); color: #71717a;
+  }
+  .seg.today { border-color: rgba(34,211,238,0.4); color: #22d3ee; }
+
+  .emoji-slot { display: flex; align-items: center; justify-content: center; }
+  .emoji-slot.off { opacity: 0.12; filter: grayscale(1); }
+
+  .size-label {
+    font-family: monospace; font-size: 10px; color: #52525b; letter-spacing: 2px;
+    text-transform: uppercase; margin-bottom: 6px; text-align: center;
+  }
+</style>
+
+<h2>Emoji Size Comparison</h2>
+<p class="subtitle">Click the one that feels right</p>
+
+<div class="wrap">
+
+  <!-- 16px (current) -->
+  <div>
+    <div class="size-label">16px (current)</div>
+    <div class="ct" data-choice="16px" onclick="toggleSelect(this)">
+      <div class="ct-header">
+        <span class="ct-title">workout streak</span>
+        <span class="ct-date">mar 8 – 14</span>
+      </div>
+      <div class="seg-group" style="gap: 6px;">
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:28px; font-size:16px;">🏊</div><div class="seg on">SAT</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:28px; font-size:16px;">🏃</div><div class="seg on">SUN</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:28px; font-size:16px;">🏊</div><div class="seg on">MON</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:28px; font-size:16px;">🚴</div><div class="seg on">TUE</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot off" style="height:28px; font-size:16px;">-</div><div class="seg">WED</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:28px; font-size:16px;">🏃</div><div class="seg on">THU</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot off" style="height:28px; font-size:16px;">?</div><div class="seg today">FRI</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 22px -->
+  <div>
+    <div class="size-label">22px</div>
+    <div class="ct" data-choice="22px" onclick="toggleSelect(this)">
+      <div class="ct-header">
+        <span class="ct-title">workout streak</span>
+        <span class="ct-date">mar 8 – 14</span>
+      </div>
+      <div class="seg-group" style="gap: 6px;">
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:32px; font-size:22px;">🏊</div><div class="seg on">SAT</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:32px; font-size:22px;">🏃</div><div class="seg on">SUN</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:32px; font-size:22px;">🏊</div><div class="seg on">MON</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:32px; font-size:22px;">🚴</div><div class="seg on">TUE</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot off" style="height:32px; font-size:22px;">-</div><div class="seg">WED</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot" style="height:32px; font-size:22px;">🏃</div><div class="seg on">THU</div></div>
+        <div class="seg-col" style="gap: 8px;"><div class="emoji-slot off" style="height:32px; font-size:22px;">?</div><div class="seg today">FRI</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 28px -->
+  <div>
+    <div class="size-label">28px</div>
+    <div class="ct" data-choice="28px" onclick="toggleSelect(this)">
+      <div class="ct-header">
+        <span class="ct-title">workout streak</span>
+        <span class="ct-date">mar 8 – 14</span>
+      </div>
+      <div class="seg-group" style="gap: 6px;">
+        <div class="seg-col" style="gap: 10px;"><div class="emoji-slot" style="height:36px; font-size:28px;">🏊</div><div class="seg on">SAT</div></div>
+        <div class="seg-col" style="gap: 10px;"><div class="emoji-slot" style="height:36px; font-size:28px;">🏃</div><div class="seg on">SUN</div></div>
+        <div class="seg-col" style="gap: 10px;"><div class="emoji-slot" style="height:36px; font-size:28px;">🏊</div><div class="seg on">MON</div></div>
+        <div class="seg-col" style="gap: 10px;"><div class="emoji-slot" style="height:36px; font-size:28px;">🚴</div><div class="seg on">TUE</div></div>
+        <div class="seg-col" style="gap: 10px;"><div class="emoji-slot off" style="height:36px; font-size:28px;">-</div><div class="seg">WED</div></div>
+        <div class="seg-col" style="gap: 10px;"><div class="emoji-slot" style="height:36px; font-size:28px;">🏃</div><div class="seg on">THU</div></div>
+        <div class="seg-col" style="gap: 10px;"><div class="emoji-slot off" style="height:36px; font-size:28px;">?</div><div class="seg today">FRI</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>

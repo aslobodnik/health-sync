@@ -3,13 +3,11 @@ import SwiftUI
 @main
 struct HealthSyncApp: App {
     @StateObject private var healthKitManager = HealthKitManager()
-    @StateObject private var syncManager = SyncManager()  // kept for rollback
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(healthKitManager)
-                .environmentObject(syncManager)
                 .task {
                     let engine = SyncEngine()
 

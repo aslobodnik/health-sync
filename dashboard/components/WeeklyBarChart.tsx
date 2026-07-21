@@ -1,15 +1,6 @@
-"use client";
-
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  Cell,
-  LabelList,
-  ReferenceLine,
-} from "recharts";
+import StreakBadge from "./StreakBadge";
+import { formatCompact } from "@/lib/format";
+import { formatShortDate, isTodayET, weekdayShort } from "@/lib/dates";
 
 interface DayData {
   date: string;
@@ -24,15 +15,7 @@ interface WeeklyBarChartProps {
   goal?: number;
 }
 
-function formatCompact(n: number): string {
-  if (n >= 1000) {
-    const k = n / 1000;
-    return k >= 10
-      ? Math.round(k) + "k"
-      : k.toFixed(1).replace(/\.0$/, "") + "k";
-  }
-  return n.toString();
-}
+const CHART_HEIGHT = 124;
 
 export default function WeeklyBarChart({
   title,
@@ -41,30 +24,12 @@ export default function WeeklyBarChart({
   color = "#10b981",
   goal,
 }: WeeklyBarChartProps) {
-  // Parse date string handling both ISO timestamps and date-only strings
-  const parseDate = (dateStr: string) => {
-    if (dateStr.includes("T")) {
-      return new Date(dateStr);
-    }
-    const [y, m, d] = dateStr.split("-").map(Number);
-    return new Date(y, m - 1, d);
-  };
-
-  // Get last 7 days of data
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const last7 = data.slice(-7).map((d) => {
-    const date = parseDate(d.date);
-    date.setHours(0, 0, 0, 0);
-    const isToday = date.getTime() === today.getTime();
-    return {
-      ...d,
-      day: date.toLocaleDateString("en-US", { weekday: "short" }),
-      label: formatCompact(d.value),
-      isToday,
-    };
-  });
+  const last7 = data.slice(-7).map((d) => ({
+    ...d,
+    day: weekdayShort(d.date),
+    label: formatCompact(d.value),
+    isToday: isTodayET(d.date),
+  }));
 
   if (last7.length === 0) return null;
 
@@ -72,6 +37,7 @@ export default function WeeklyBarChart({
   const completedDays = last7.filter((d) => !d.isToday);
   const values = last7.map((d) => d.value);
   const max = Math.max(...values, goal ?? 0);
+  const scaleMax = max * 1.15 || 1;
   const avg =
     completedDays.length > 0
       ? Math.round(
@@ -79,10 +45,9 @@ export default function WeeklyBarChart({
         )
       : 0;
 
-  // Calculate actual streak length by counting consecutive goal-meeting days from most recent
+  // Consecutive goal-meeting days, counted back from most recent completed day
   let streakCount = 0;
   if (goal) {
-    // Count backwards from the most recent completed day
     for (let i = completedDays.length - 1; i >= 0; i--) {
       if (completedDays[i].value >= goal) {
         streakCount++;
@@ -93,10 +58,7 @@ export default function WeeklyBarChart({
   }
   const hasStreak = streakCount >= 6;
 
-  // Date range
-  const startDate = parseDate(last7[0].date);
-  const endDate = parseDate(last7[last7.length - 1].date);
-  const dateRange = `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  const dateRange = `${formatShortDate(last7[0].date)} - ${formatShortDate(last7[last7.length - 1].date)}`;
 
   return (
     <div
@@ -107,35 +69,7 @@ export default function WeeklyBarChart({
         <div className="text-[10px] text-zinc-500 uppercase tracking-[0.15em]">
           {title}
         </div>
-        {/* Streak badge - compact inline */}
-        {hasStreak && (
-          <div className="streak-badge-inline">
-            <svg className="streak-flame-mini" viewBox="6 0 12 16" fill="none">
-              <path
-                d="M12 2C12 2 8 6 8 10C8 12 9 14 12 14C15 14 16 12 16 10C16 6 12 2 12 2Z"
-                fill="url(#flameGradMini)"
-              />
-              <path
-                d="M12 8C12 8 10 10 10 12C10 13 10.5 14 12 14C13.5 14 14 13 14 12C14 10 12 8 12 8Z"
-                fill="#FEF3C7"
-              />
-              <defs>
-                <linearGradient
-                  id="flameGradMini"
-                  x1="12"
-                  y1="2"
-                  x2="12"
-                  y2="14"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop stopColor="#FBBF24" />
-                  <stop offset="1" stopColor="#F97316" />
-                </linearGradient>
-              </defs>
-            </svg>
-            <span className="streak-count-mini">{streakCount}</span>
-          </div>
-        )}
+        {hasStreak && <StreakBadge count={streakCount} />}
       </div>
       <div className="flex items-baseline gap-2 mb-1">
         <span
@@ -157,49 +91,60 @@ export default function WeeklyBarChart({
       </div>
 
       {/* Chart */}
-      <ResponsiveContainer width="100%" height={144}>
-        <BarChart
-          data={last7}
-          margin={{ top: 20, right: 5, left: 5, bottom: 0 }}
-        >
-          <XAxis
-            dataKey="day"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: "#71717a", fontSize: 10 }}
-            dy={8}
+      <div className="relative" style={{ height: CHART_HEIGHT }}>
+        {/* Goal line */}
+        {goal && (
+          <div
+            className="absolute inset-x-0 border-t border-dashed"
+            style={{
+              bottom: (goal / scaleMax) * CHART_HEIGHT,
+              borderColor: hasStreak ? "#d97706" : "#52525b",
+            }}
           />
-          <YAxis hide domain={[0, max * 1.15]} />
-          {goal && (
-            <ReferenceLine
-              y={goal}
-              stroke={hasStreak ? "#d97706" : "#52525b"}
-              strokeDasharray="3 3"
-              strokeWidth={1}
-            />
-          )}
-          <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
-            {last7.map((entry, index) => {
-              const missedGoal = goal && !entry.isToday && entry.value < goal;
-              const streakBar = hasStreak && !missedGoal;
-              return (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={missedGoal ? "#b45309" : streakBar ? "#f59e0b" : color}
-                  fillOpacity={missedGoal ? 0.5 : 0.85}
+        )}
+        {/* Bars */}
+        <div className="absolute inset-0 flex items-end justify-between gap-2">
+          {last7.map((entry) => {
+            const missedGoal = goal && !entry.isToday && entry.value < goal;
+            const streakBar = hasStreak && !missedGoal;
+            const barHeight = Math.max((entry.value / scaleMax) * CHART_HEIGHT, 1);
+            return (
+              <div
+                key={entry.date}
+                className="flex-1 max-w-10 flex flex-col items-center justify-end gap-1.5"
+              >
+                <span className="text-[10px] text-zinc-400 font-mono leading-none">
+                  {entry.label}
+                </span>
+                <div
+                  className="w-full rounded-t"
+                  style={{
+                    height: barHeight,
+                    backgroundColor: missedGoal
+                      ? "#b45309"
+                      : streakBar
+                        ? "#f59e0b"
+                        : color,
+                    opacity: missedGoal ? 0.5 : 0.85,
+                  }}
                 />
-              );
-            })}
-            <LabelList
-              dataKey="label"
-              position="top"
-              fill="#a1a1aa"
-              fontSize={10}
-              offset={6}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Weekday labels */}
+      <div className="flex justify-between gap-2 mt-2">
+        {last7.map((entry) => (
+          <span
+            key={entry.date}
+            className="flex-1 max-w-10 text-center text-[10px] text-[#71717a]"
+          >
+            {entry.day}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

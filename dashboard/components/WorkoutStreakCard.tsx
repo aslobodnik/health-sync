@@ -1,66 +1,12 @@
-"use client";
-
-interface WorkoutDetail {
-  type: string;
-  durationMinutes: number;
-  calories: number | null;
-  avgHR: number | null;
-  distance: number | null;
-}
-
-interface StreakDay {
-  date: string;
-  dayLabel: string;
-  workouts: WorkoutDetail[];
-}
+import StreakBadge from "./StreakBadge";
+import { workoutEmoji, workoutLabel } from "@/lib/workoutTypes";
+import { isTodayET } from "@/lib/dates";
+import type { StreakDay } from "@/lib/workoutStreak";
 
 interface WorkoutStreakCardProps {
   days: StreakDay[];
   activeDayCount: number;
   dateRange: string;
-}
-
-const EMOJI_MAP: Record<string, string> = {
-  HKWorkoutActivityTypeSwimming: "\u{1F3CA}",
-  HKWorkoutActivityTypeRunning: "\u{1F3C3}",
-  HKWorkoutActivityTypeCycling: "\u{1F6B4}",
-  HKWorkoutActivityTypeTraditionalStrengthTraining: "\u{1F3CB}\uFE0F",
-  HKWorkoutActivityTypeFunctionalStrengthTraining: "\u{1F3CB}\uFE0F",
-  HKWorkoutActivityTypeHiking: "\u{1F97E}",
-  HKWorkoutActivityTypeYoga: "\u{1F9D8}",
-  HKWorkoutActivityTypeElliptical: "\u{1F3C3}\u200D\u2642\uFE0F",
-  HKWorkoutActivityTypeRowing: "\u{1F6A3}",
-  HKWorkoutActivityTypeStairClimbing: "\u{1FA9C}",
-  HKWorkoutActivityTypeStairs: "\u{1FA9C}",
-  HKWorkoutActivityTypeClimbing: "\u{1F9D7}",
-  HKWorkoutActivityTypeHighIntensityIntervalTraining: "\u{1F525}",
-  HKWorkoutActivityTypeStairStepper: "\u{1FA9C}",
-  HKWorkoutActivityTypeOther: "\u{1F4AA}",
-};
-
-function getEmoji(type: string): string {
-  return EMOJI_MAP[type] || "\u{1F4AA}";
-}
-
-const DISPLAY_NAMES: Record<string, string> = {
-  HKWorkoutActivityTypeTraditionalStrengthTraining: "Strength",
-  HKWorkoutActivityTypeFunctionalStrengthTraining: "Strength",
-  HKWorkoutActivityTypeHighIntensityIntervalTraining: "HIIT",
-  HKWorkoutActivityTypeStairClimbing: "Stairs",
-  HKWorkoutActivityTypeStairStepper: "Stair Master",
-  HKWorkoutActivityTypeOther: "Workout",
-};
-
-function formatType(type: string): string {
-  return DISPLAY_NAMES[type] || type.replace("HKWorkoutActivityType", "");
-}
-
-function isTodayDate(dateStr: string): boolean {
-  const now = new Date();
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return (
-    y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate()
-  );
 }
 
 export default function WorkoutStreakCard({
@@ -80,38 +26,7 @@ export default function WorkoutStreakCard({
           <span className="text-[10px] text-zinc-500 uppercase tracking-[0.15em] font-mono">
             workout streak
           </span>
-          {hasStreak && (
-            <div className="streak-badge-inline">
-              <svg
-                className="streak-flame-mini"
-                viewBox="6 0 12 16"
-                fill="none"
-              >
-                <path
-                  d="M12 2C12 2 8 6 8 10C8 12 9 14 12 14C15 14 16 12 16 10C16 6 12 2 12 2Z"
-                  fill="url(#streakFlameGrad)"
-                />
-                <path
-                  d="M12 8C12 8 10 10 10 12C10 13 10.5 14 12 14C13.5 14 14 13 14 12C14 10 12 8 12 8Z"
-                  fill="#FEF3C7"
-                />
-                <defs>
-                  <linearGradient
-                    id="streakFlameGrad"
-                    x1="12"
-                    y1="2"
-                    x2="12"
-                    y2="14"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <stop stopColor="#FBBF24" />
-                    <stop offset="1" stopColor="#F97316" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <span className="streak-count-mini">{activeDayCount}</span>
-            </div>
-          )}
+          {hasStreak && <StreakBadge count={activeDayCount} />}
         </div>
         <span className="text-[10px] text-zinc-700 font-mono tracking-wider">
           {dateRange}
@@ -122,7 +37,7 @@ export default function WorkoutStreakCard({
       <div className="flex gap-1.5">
         {days.map((day) => {
           const hasWorkout = day.workouts.length > 0;
-          const today = isTodayDate(day.date);
+          const today = isTodayET(day.date);
           const multiWorkout = day.workouts.length > 1;
 
           return (
@@ -146,14 +61,14 @@ export default function WorkoutStreakCard({
                           className={`font-bold mb-1 ${hasStreak ? "text-amber-400" : "text-emerald-400"}`}
                         >
                           {day.workouts
-                            .map((w) => formatType(w.type))
+                            .map((w) => workoutLabel(w.type))
                             .join(" + ")}
                         </div>
                         <div className="border-t border-zinc-800 my-1" />
                         {day.workouts.map((w, i) => (
                           <div key={i} className="text-zinc-400">
                             <span className="text-zinc-600">
-                              {formatType(w.type).toLowerCase()}{" "}
+                              {workoutLabel(w.type).toLowerCase()}{" "}
                             </span>
                             <span className="text-zinc-100">
                               {w.durationMinutes} min
@@ -172,7 +87,7 @@ export default function WorkoutStreakCard({
                         <div
                           className={`font-bold mb-1 ${hasStreak ? "text-amber-400" : "text-emerald-400"}`}
                         >
-                          {formatType(day.workouts[0].type)}
+                          {workoutLabel(day.workouts[0].type)}
                         </div>
                         {day.workouts[0].durationMinutes > 0 && (
                           <div>
@@ -229,12 +144,12 @@ export default function WorkoutStreakCard({
                   multiWorkout ? (
                     <span className="text-[14px] sm:text-[18px] flex gap-0.5">
                       {day.workouts.slice(0, 2).map((w, i) => (
-                        <span key={i}>{getEmoji(w.type)}</span>
+                        <span key={i}>{workoutEmoji(w.type)}</span>
                       ))}
                     </span>
                   ) : (
                     <span className="text-[22px] sm:text-[28px]">
-                      {getEmoji(day.workouts[0].type)}
+                      {workoutEmoji(day.workouts[0].type)}
                     </span>
                   )
                 ) : (

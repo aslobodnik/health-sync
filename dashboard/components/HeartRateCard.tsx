@@ -1,16 +1,5 @@
-interface DataPoint {
-  date: string;
-  value: number;
-}
-
-interface VO2MaxMonth {
-  month: string;
-  value: number;
-}
-
-interface VO2MaxData {
-  months: VO2MaxMonth[];
-}
+import type { DataPoint, VO2MaxData, VO2MaxMonth } from "@/lib/queries";
+import { relativeDay } from "@/lib/dates";
 
 interface HeartRateCardProps {
   rhr: DataPoint[];
@@ -106,30 +95,6 @@ function Trend({ data, lowerIsBetter }: { data: DataPoint[]; lowerIsBetter: bool
   );
 }
 
-function formatDate(dateStr: string): string {
-  // Handle both ISO timestamps and date-only strings
-  let date: Date;
-  if (dateStr.includes("T")) {
-    // ISO timestamp - safe to parse directly
-    date = new Date(dateStr);
-  } else {
-    // Date-only string - parse as local to avoid UTC offset shift
-    const [y, m, d] = dateStr.split("-").map(Number);
-    date = new Date(y, m - 1, d);
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  // Compare using date strings to handle timezone differences
-  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  if (dateOnly.getTime() === today.getTime()) return "today";
-  if (dateOnly.getTime() === yesterday.getTime()) return "yesterday";
-
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 function VO2Timeline({ months }: { months: VO2MaxMonth[] }) {
   if (months.length === 0) return null;
@@ -176,7 +141,7 @@ export default function HeartRateCard({ rhr, hrv, sleepHr, vo2max }: HeartRateCa
       {/* RHR */}
       <div className="flex items-center justify-between mb-1">
         <div className="text-[10px] text-zinc-500 uppercase tracking-[0.15em]">
-          resting hr <span className="text-zinc-600">({formatDate(latestRhrDate)})</span>
+          resting hr <span className="text-zinc-600">({relativeDay(latestRhrDate)})</span>
         </div>
         <Trend data={rhr} lowerIsBetter={true} />
       </div>
@@ -188,7 +153,7 @@ export default function HeartRateCard({ rhr, hrv, sleepHr, vo2max }: HeartRateCa
       {/* HRV */}
       <div className="flex items-center justify-between mb-1">
         <div className="text-[10px] text-zinc-500 uppercase tracking-[0.15em]">
-          hrv <span className="text-zinc-600">({formatDate(latestHrvDate)})</span>
+          hrv <span className="text-zinc-600">({relativeDay(latestHrvDate)})</span>
         </div>
         <Trend data={hrv} lowerIsBetter={false} />
       </div>
@@ -200,7 +165,7 @@ export default function HeartRateCard({ rhr, hrv, sleepHr, vo2max }: HeartRateCa
           <div className="divider-glow my-3" style={{ background: 'linear-gradient(90deg, transparent, rgba(244, 114, 182, 0.3), transparent)' }} />
           <div className="flex items-center justify-between mb-1">
             <div className="text-[10px] text-zinc-500 uppercase tracking-[0.15em]">
-              sleeping hr <span className="text-zinc-600">({formatDate(latestSleepHrDate)})</span>
+              sleeping hr <span className="text-zinc-600">({relativeDay(latestSleepHrDate)})</span>
             </div>
             <Trend data={sleepHr} lowerIsBetter={true} />
           </div>

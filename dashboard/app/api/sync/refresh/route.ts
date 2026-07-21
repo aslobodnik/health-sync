@@ -1,30 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
-const API_SECRET = process.env.SYNC_API_SECRET || "CHANGE_ME";
-
+// Manual refresh escape hatch. Normal freshness comes from the NUC cron
+// (REFRESH MATERIALIZED VIEW CONCURRENTLY daily_metrics every 10 minutes).
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== API_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const unauthorized = requireAuth(request);
+  if (unauthorized) return unauthorized;
 
   try {
-    const client = await pool.connect();
-    try {
-      const start = Date.now();
-      await client.query("REFRESH MATERIALIZED VIEW CONCURRENTLY daily_metrics");
-      const duration = Date.now() - start;
-
-      console.log(`Materialized view refreshed in ${duration}ms`);
-
-      return NextResponse.json({
-        success: true,
-        refreshedIn: duration,
-      });
-    } finally {
-      client.release();
-    }
+    const start = Date.now();
+    await pool.query("REFRESH MATERIALIZED VIEW CONCURRENTLY daily_metrics");
+    return NextResponse.json({ success: true, refreshedIn: Date.now() - start });
   } catch (error) {
     console.error("Refresh error:", error);
     return NextResponse.json(

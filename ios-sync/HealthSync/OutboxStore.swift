@@ -45,9 +45,4 @@ actor OutboxStore {
         let url = directory.appendingPathComponent("\(pageId.uuidString).json")
         try? FileManager.default.removeItem(at: url)
     }
-
-    func pageCount() -> Int {
-        let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-        return files?.filter { $0.pathExtension == "json" }.count ?? 0
-    }
 }

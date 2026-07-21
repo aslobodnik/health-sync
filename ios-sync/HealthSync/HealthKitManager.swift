@@ -139,12 +139,4 @@ class HealthKitManager: ObservableObject {
         healingIsFailure = result?.isFailure ?? false
     }
 
-    // MARK: - Cleanup
-
-    func stopObservers() {
-        for query in observerQueries {
-            healthStore.stop(query)
-        }
-        observerQueries.removeAll()
-    }
 }
